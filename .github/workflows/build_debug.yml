@@ -1,0 +1,23 @@
+name: wordle-archive build debug
+on: [push]
+jobs:
+  build-arch-debug:
+    runs-on: ubuntu-latest
+    container: archlinux:base-devel
+    steps:
+      - name: update packages
+        run: pacman -Syu --noconfirm
+      - name: install packages
+        run: pacman -S --needed --noconfirm cargo git
+      - name: check out repository code
+        uses: actions/checkout@v2
+      - name: run debug build
+        run: cargo build --all-targets
+      - name: run debug tests
+        run: cargo test
+      - name: upload debug binary
+        uses: actions/upload-artifact@v2
+        with:
+          name: wordle-archive-debug
+          path: |
+            target/debug/wordle-archive
