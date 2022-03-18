@@ -18,6 +18,6 @@ jobs:
       - name: upload debug binary
         uses: actions/upload-artifact@v2
         with:
-          name: wordle-archive-debug
+          name: wordle-archive-release
           path: |
             target/release/wordle-archive
