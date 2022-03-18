@@ -505,12 +505,12 @@ async fn handle_populate_post(req: Request<Body>) -> Result<Response<Body>, Infa
         Some(s) => s.replace("\r", ""),
         None => return return_400("missing field \"result\""),
     };
-    let solution = match form_pairs.get("solution") {
-        Some(s) => s.replace("\r", "").trim().to_owned(),
+    let raw_solution = match form_pairs.get("solution") {
+        Some(s) => s.replace("\r", "").to_owned(),
         None => return return_400("missing field \"solution\""),
     };
 
-    let (head, tail, pattern) = if site.variant == "geo" {
+    let (head, tail, pattern, solution) = if site.variant == "geo" {
         if let Some(m) = GEO_RESULT_BLOCK_RE.find(&result) {
             let mut result_string = String::new();
             for line in m.as_str().split("\n") {
@@ -529,12 +529,12 @@ async fn handle_populate_post(req: Request<Body>) -> Result<Response<Body>, Infa
                     }
                 }
             }
-            (&result[0..m.start()], &result[m.end()..], result_string)
+            (&result[0..m.start()], &result[m.end()..], result_string, raw_solution.trim())
         } else {
             return return_400("failed to decode guesses");
         }
     } else if site.variant == "audio" {
-        let solution_lines: Vec<&str> = solution.split('\n').collect();
+        let solution_lines: Vec<&str> = raw_solution.split('\n').collect();
         if let Some(m) = AUDIO_RESULT_BLOCK_RE.find(&result) {
             let mut result_string = String::new();
             for c in m.as_str().chars() {
@@ -566,12 +566,13 @@ async fn handle_populate_post(req: Request<Body>) -> Result<Response<Body>, Infa
                 newline_result_string.push(c);
             }
 
-            (&result[0..m.start()], &result[m.end()..], newline_result_string)
+            (&result[0..m.start()], &result[m.end()..], newline_result_string, raw_solution.as_str())
         } else {
             return return_400("failed to decode guesses");
         }
     } else {
         // verify solution
+        let solution = raw_solution.trim();
         let solution_lines: Vec<&str> = solution.split('\n').collect();
         if let Some(m) = RESULT_BLOCK_RE.find(&result) {
             let mut result_string = String::new();
@@ -595,7 +596,7 @@ async fn handle_populate_post(req: Request<Body>) -> Result<Response<Body>, Infa
                 ));
             }
 
-            (&result[0..m.start()], &result[m.end()..], result_string)
+            (&result[0..m.start()], &result[m.end()..], result_string, solution)
         } else {
             return return_400("failed to decode guesses");
         }
