@@ -7,9 +7,9 @@ use crate::model::{Puzzle, PuzzleSite, SiteAndPuzzle};
 
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
-pub(crate) enum PuzzleDateResult {
-    Date(NaiveDate),
-    NoPuzzle,
+pub(crate) enum OptionResult<T> {
+    Present(T),
+    Absent,
     Error,
 }
 
@@ -83,7 +83,7 @@ impl DbConnection {
         Some(sites)
     }
 
-    pub async fn get_most_recent_puzzle_date(&self) -> PuzzleDateResult {
+    pub async fn get_most_recent_puzzle_date(&self) -> OptionResult<NaiveDate> {
         let row_opt_res = self.client.query_opt(
             "SELECT MAX(puzzle_date) FROM wordle_archive.puzzles",
             &[],
@@ -91,13 +91,50 @@ impl DbConnection {
         match row_opt_res {
             Ok(Some(r)) => {
                 let date: NaiveDate = r.get(0);
-                PuzzleDateResult::Date(date)
+                OptionResult::Present(date)
             },
-            Ok(None) => PuzzleDateResult::NoPuzzle,
+            Ok(None) => OptionResult::Absent,
             Err(e) => {
                 error!("failed to obtain maximum puzzle date: {}", e);
-                PuzzleDateResult::Error
-            }
+                OptionResult::Error
+            },
+        }
+    }
+
+    fn row_to_site_and_puzzle(row: &tokio_postgres::Row) -> SiteAndPuzzle {
+        let site_id = row.get(0);
+        let site_name = row.get(1);
+        let site_url = row.get(2);
+        let css_class = row.get(3);
+        let variant = row.get(4);
+        let id = row.get(5);
+        let date = row.get(6);
+        let day_ordinal = row.get(7);
+        let head = row.get(8);
+        let tail = row.get(9);
+        let pattern = row.get(10);
+        let solution = row.get(11);
+
+        let site = PuzzleSite {
+            id: site_id,
+            name: site_name,
+            url: site_url,
+            css_class,
+            variant,
+        };
+        let puzzle = Puzzle {
+            id,
+            site_id,
+            date,
+            day_ordinal,
+            head,
+            tail,
+            pattern,
+            solution,
+        };
+        SiteAndPuzzle {
+            site,
+            puzzle,
         }
     }
 
@@ -126,44 +163,39 @@ impl DbConnection {
 
         let mut puzzles = Vec::new();
         for row in rows {
-            let site_id = row.get(0);
-            let site_name = row.get(1);
-            let site_url = row.get(2);
-            let css_class = row.get(3);
-            let variant = row.get(4);
-            let id = row.get(5);
-            let date = row.get(6);
-            let day_ordinal = row.get(7);
-            let head = row.get(8);
-            let tail = row.get(9);
-            let pattern = row.get(10);
-            let solution = row.get(11);
-
-            let site = PuzzleSite {
-                id: site_id,
-                name: site_name,
-                url: site_url,
-                css_class,
-                variant,
-            };
-            let puzzle = Puzzle {
-                id,
-                site_id,
-                date,
-                day_ordinal,
-                head,
-                tail,
-                pattern,
-                solution,
-            };
-            let site_and_puzzle = SiteAndPuzzle {
-                site,
-                puzzle,
-            };
+            let site_and_puzzle = Self::row_to_site_and_puzzle(&row);
             puzzles.push(site_and_puzzle);
         }
 
         Some(puzzles)
+    }
+
+    pub async fn get_puzzle_by_id(&self, id: i64) -> OptionResult<SiteAndPuzzle> {
+        let row_opt_res = self.client.query_opt(
+            "
+                SELECT
+                    site_id, site_name, site_url, site_css_class, variant, puzzle_id, puzzle_date,
+                    day_ordinal, head, tail, pattern, solution
+                FROM
+                    wordle_archive.sites_and_puzzles
+                WHERE
+                    puzzle_id = $1
+                ORDER BY
+                    site_id
+            ",
+            &[&id],
+        ).await;
+        match row_opt_res {
+            Ok(Some(r)) => {
+                let site_and_puzzle = Self::row_to_site_and_puzzle(&r);
+                OptionResult::Present(site_and_puzzle)
+            },
+            Ok(None) => OptionResult::Absent,
+            Err(e) => {
+                error!("failed to obtain puzzle by ID: {}", e);
+                OptionResult::Error
+            },
+        }
     }
 
     pub async fn store_puzzle(&self, puzzle: &Puzzle) -> bool {

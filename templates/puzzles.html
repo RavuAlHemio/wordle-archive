@@ -5,21 +5,35 @@
 {% block content %}
 <h1>Wordle Archive</h1>
 
+{% if let Some(date) = date_opt %}
 <h2>{{ date.format("%Y-%m-%d")|escape }}</h2>
+{% endif %}
 
 <p class="date-nav">
-  {%- if let Some(yesterday) = date.pred_opt() -%}
-    <a href="{{ yesterday.format("%Y-%m-%d")|escape }}">&#11013;&#65039;</a>
-  {%- endif -%}
-  {%- if let Some(tomorrow) = date.succ_opt() -%}
-    <a href="{{ tomorrow.format("%Y-%m-%d")|escape }}">&#10145;&#65039;</a>
-  {%- endif -%}
+  {% if let Some(date) = date_opt %}
+    {% if let Some(yesterday) = date.pred_opt() %}
+      <a href="{{ yesterday.format("%Y-%m-%d")|escape }}" title="one day back">&#11013;&#65039;</a>
+    {% else %}
+      <span class="disabled-link">&#11013;&#65039;</span>
+    {% endif %}
+    {% if let Some(tomorrow) = date.succ_opt() %}
+      <a href="{{ tomorrow.format("%Y-%m-%d")|escape }}" title="one day forward">&#10145;&#65039;</a>
+    {% else %}
+      <span class="disabled-link">&#10145;&#65039;</span>
+    {% endif %}
+  {% endif %}
+
+  {% if !spoil %}
+    <a href="?spoil=true" title="spoil the answers">&#128065;&#65039;</a>
+  {% else %}
+    <span class="disabled-link">&#128065;&#65039;</span>
+  {% endif %}
 </p>
 
 {% for puzzle in puzzles %}
 <h3>{{ puzzle.site.name|escape }}</h3>
 
-<p><a href="{{ puzzle.site.url|escape }}">go there</a></p>
+<p><a href="../puzzle/{{ puzzle.id }}">only this</a> &middot; <a href="{{ puzzle.site.url|escape }}">visit site</a></p>
 
 <section class="puzzle site-{{ puzzle.site.css_class|escape }}">
 
@@ -35,11 +49,14 @@
         <div class="arrow-box">{{ g|escape }}&#65039;</div>
       {%- endif -%}
     {%- endfor -%}
-    <div class="guess-box">{{ solution|escape }}</div>
+
+    {% if spoil %}
+      <div class="guess-box">{{ solution|escape }}</div>
+    {% endif %}
   </div>
   {% endfor %}
 
-  {% if !puzzle.solved %}
+  {% if spoil && !puzzle.solved %}
   <div class="field-row solution-row">
     <div class="guess-box">{{ puzzle.solution|escape }}</div>
   </div>
@@ -51,12 +68,12 @@
 {% for (guess, solution) in puzzle.guess_lines %}
 <div class="field-row guess-row">
   {%- for (g, s) in guess.chars().zip(solution.chars()) -%}
-  <div class="field-box guess-{{ g|escape }}">{{ s|escape }}</div>
+  <div class="field-box guess-{{ g|escape }}">{% if spoil %}{{ s|escape }}{% endif %}</div>
   {%- endfor -%}
 </div>
 {% endfor %}
 
-{% if !puzzle.solved %}
+{% if spoil && !puzzle.solved %}
 <div class="field-row solution-row">
   {%- for s in puzzle.solution.chars() -%}
   <div class="field-box solution">{{ s|escape }}</div>

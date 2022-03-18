@@ -22,8 +22,8 @@ use regex::Regex;
 use tokio::sync::RwLock;
 
 use crate::config::{CONFIG, CONFIG_PATH, load_config};
-use crate::database::{DbConnection, PuzzleDateResult};
-use crate::model::{Puzzle, PuzzleSite};
+use crate::database::{DbConnection, OptionResult};
+use crate::model::{Puzzle, PuzzleSite, SiteAndPuzzle};
 
 
 #[derive(Parser)]
@@ -53,8 +53,9 @@ struct NoPuzzlesTemplate;
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Template)]
 #[template(path = "puzzles.html")]
 struct PuzzlesTemplate {
+    pub spoil: bool,
     pub puzzles: Vec<PuzzlePart>,
-    pub date: NaiveDate,
+    pub date_opt: Option<NaiveDate>,
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -237,6 +238,8 @@ async fn handle_request(req: Request<Body>) -> Result<Response<Body>, Infallible
         }
     } else if path_segs.len() > 0 && path_segs[0] == "wordle" {
         handle_wordle(req, path_segs.get(1)).await
+    } else if path_segs.len() == 2 && path_segs[0] == "puzzle" {
+        handle_puzzle(req, &path_segs[1]).await
     } else if path_segs.len() > 0 && path_segs[0] == "populate" {
         handle_populate(req).await
     } else {
@@ -244,8 +247,28 @@ async fn handle_request(req: Request<Body>) -> Result<Response<Body>, Infallible
     }
 }
 
+fn db_puzzle_to_puzzle_part(db_puzzle: &SiteAndPuzzle) -> PuzzlePart {
+    let pattern_lines: Vec<&str> = db_puzzle.puzzle.pattern.split("\n").collect();
+    let solution_lines: Vec<&str> = db_puzzle.puzzle.solution.split("\n").collect();
+
+    let guess_lines = pattern_lines.iter().zip(solution_lines.iter())
+        .map(|(&p, &s)| (p.to_owned(), s.to_owned()))
+        .collect();
+
+    PuzzlePart {
+        site: db_puzzle.site.clone(),
+        id: db_puzzle.puzzle.id,
+        day_ordinal: db_puzzle.puzzle.day_ordinal,
+        head: db_puzzle.puzzle.head.clone(),
+        tail: db_puzzle.puzzle.tail.clone(),
+        guess_lines,
+        solved: pattern_lines.len() == solution_lines.len(),
+        solution: (*solution_lines.last().unwrap()).to_owned(),
+    }
+}
+
 async fn handle_wordle<S: AsRef<str>>(
-    _req: Request<Body>,
+    req: Request<Body>,
     date_string_opt: Option<S>,
 ) -> Result<Response<Body>, Infallible> {
     let date_opt = match date_string_opt {
@@ -258,6 +281,17 @@ async fn handle_wordle<S: AsRef<str>>(
         None => None,
     };
 
+    let mut spoil = false;
+    if let Some(query_string) = req.uri().query() {
+        let query_pairs: HashMap<Cow<str>, Cow<str>> = form_urlencoded::parse(query_string.as_bytes())
+            .collect();
+        if let Some(spoil_str) = query_pairs.get("spoil") {
+            if let Ok(spoil_bool) = spoil_str.parse() {
+                spoil = spoil_bool;
+            }
+        }
+    }
+
     let db_conn = match DbConnection::new().await {
         Some(c) => c,
         None => return return_500(), // error already logged
@@ -268,12 +302,12 @@ async fn handle_wordle<S: AsRef<str>>(
         None => {
             // get freshest date from database
             match db_conn.get_most_recent_puzzle_date().await {
-                PuzzleDateResult::Date(d) => d,
-                PuzzleDateResult::NoPuzzle => {
+                OptionResult::Present(d) => d,
+                OptionResult::Absent => {
                     let template = NoPuzzlesTemplate;
                     return render_template(&template, 404, HashMap::new());
                 },
-                PuzzleDateResult::Error => return return_500(), // error already logged
+                OptionResult::Error => return return_500(), // error already logged
             }
         },
     };
@@ -287,29 +321,53 @@ async fn handle_wordle<S: AsRef<str>>(
     // process them
     let mut puzzles = Vec::with_capacity(db_puzzles.len());
     for db_puzzle in &db_puzzles {
-        let pattern_lines: Vec<&str> = db_puzzle.puzzle.pattern.split("\n").collect();
-        let solution_lines: Vec<&str> = db_puzzle.puzzle.solution.split("\n").collect();
-
-        let guess_lines = pattern_lines.iter().zip(solution_lines.iter())
-            .map(|(&p, &s)| (p.to_owned(), s.to_owned()))
-            .collect();
-
-        let puzzle = PuzzlePart {
-            site: db_puzzle.site.clone(),
-            id: db_puzzle.puzzle.id,
-            day_ordinal: db_puzzle.puzzle.day_ordinal,
-            head: db_puzzle.puzzle.head.clone(),
-            tail: db_puzzle.puzzle.tail.clone(),
-            guess_lines,
-            solved: pattern_lines.len() == solution_lines.len(),
-            solution: (*solution_lines.last().unwrap()).to_owned(),
-        };
-        puzzles.push(puzzle);
+        puzzles.push(db_puzzle_to_puzzle_part(db_puzzle));
     }
 
     let template = PuzzlesTemplate {
+        spoil,
         puzzles,
-        date,
+        date_opt: Some(date),
+    };
+    render_template(&template, 200, HashMap::new())
+}
+
+async fn handle_puzzle<S: AsRef<str>>(
+    req: Request<Body>,
+    id_string: S,
+) -> Result<Response<Body>, Infallible> {
+    let id: i64 = match id_string.as_ref().parse() {
+        Ok(i) => i,
+        Err(_) => return return_404(),
+    };
+
+    let mut spoil = false;
+    if let Some(query_string) = req.uri().query() {
+        let query_pairs: HashMap<Cow<str>, Cow<str>> = form_urlencoded::parse(query_string.as_bytes())
+            .collect();
+        if let Some(spoil_str) = query_pairs.get("spoil") {
+            if let Ok(spoil_bool) = spoil_str.parse() {
+                spoil = spoil_bool;
+            }
+        }
+    }
+
+    let db_conn = match DbConnection::new().await {
+        Some(c) => c,
+        None => return return_500(), // error already logged
+    };
+
+    let db_puzzle = match db_conn.get_puzzle_by_id(id).await {
+        OptionResult::Present(d) => d,
+        OptionResult::Absent => return return_404(),
+        OptionResult::Error => return return_500(), // error already logged
+    };
+    let puzzle = db_puzzle_to_puzzle_part(&db_puzzle);
+
+    let template = PuzzlesTemplate {
+        spoil,
+        puzzles: vec![puzzle],
+        date_opt: None,
     };
     render_template(&template, 200, HashMap::new())
 }
