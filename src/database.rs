@@ -53,7 +53,7 @@ impl DbConnection {
                 FROM
                     wordle_archive.sites
                 ORDER BY
-                    name
+                    id
             ",
             &[],
         ).await;
