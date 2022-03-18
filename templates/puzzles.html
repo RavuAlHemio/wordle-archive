@@ -7,6 +7,15 @@
 
 <h2>{{ date.format("%Y-%m-%d")|escape }}</h2>
 
+<p class="date-nav">
+  {%- if let Some(yesterday) = date.pred_opt() -%}
+    <a href="{{ yesterday.format("%Y-%m-%d")|escape }}">&#11013;&#65039;</a>
+  {%- endif -%}
+  {%- if let Some(tomorrow) = date.succ_opt() -%}
+    <a href="{{ tomorrow.format("%Y-%m-%d")|escape }}">&#10145;&#65039;</a>
+  {%- endif -%}
+</p>
+
 {% for puzzle in puzzles %}
 <h3>{{ puzzle.site.name|escape }}</h3>
 
