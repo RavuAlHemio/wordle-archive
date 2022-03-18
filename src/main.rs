@@ -89,11 +89,11 @@ static RESULT_BLOCK_RE: Lazy<Regex> = Lazy::new(|| Regex::new(concat!(
 static GEO_RESULT_BLOCK_RE: Lazy<Regex> = Lazy::new(|| Regex::new(concat!(
     // squares as above
     // arrows: right, [left, up, down], [up-left, up-right, down-left, down-right], party popper
-    // emoji variant selector after the arrow
-    "[\u{2B1B}\u{2B1C}\u{1F7E5}-\u{1F7EB}]+[\u{27A1}\u{2B05}-\u{2B07}\u{2196}-\u{2199}\u{1F389}]\u{FE0F}",
+    // emoji variant selector after the arrow (optional)
+    "[\u{2B1B}\u{2B1C}\u{1F7E5}-\u{1F7EB}]+[\u{27A1}\u{2B05}-\u{2B07}\u{2196}-\u{2199}\u{1F389}]\u{FE0F}?",
     "(?:",
         "\r?\n",
-        "[\u{2B1B}\u{2B1C}\u{1F7E5}-\u{1F7EB}]+[\u{27A1}\u{2B05}-\u{2B07}\u{2196}-\u{2199}\u{1F389}]\u{FE0F}",
+        "[\u{2B1B}\u{2B1C}\u{1F7E5}-\u{1F7EB}]+[\u{27A1}\u{2B05}-\u{2B07}\u{2196}-\u{2199}\u{1F389}]\u{FE0F}?",
     ")*",
 )).unwrap());
 
