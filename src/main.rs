@@ -588,11 +588,20 @@ async fn handle_populate_post(req: Request<Body>) -> Result<Response<Body>, Infa
                 }
             }
 
-            let result_line_count = result_string.split('\n').count();
-            if result_line_count != solution_lines.len() && result_line_count + 1 != solution_lines.len() {
+            // victory: is there any line that consists only of "C"s (correct answers)?
+            let victory_index_opt = result_string
+                .split('\n')
+                .position(|ln| ln.chars().all(|c| c == 'C'));
+            let expected_line_count = if let Some(victory_index) = victory_index_opt {
+                victory_index + 1
+            } else {
+                result_string.split('\n').count() + 1
+            };
+
+            if expected_line_count != solution_lines.len() {
                 return return_400(format!(
-                    "{} result lines, {} solution lines; must be either same or one more solution line",
-                    result_line_count, solution_lines.len(),
+                    "calculated {} result lines, obtained {} solution lines",
+                    expected_line_count, solution_lines.len(),
                 ));
             }
 
