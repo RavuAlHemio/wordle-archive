@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}Wordle Archive{% endblock %}
+
+{% block content %}
+<h1>Wordle Archive</h1>
+
+<h2>{{ date.format("%Y-%m-%d")|escape }}</h2>
+
+{% for puzzle in puzzles %}
+<h3>{{ puzzle.site.name|escape }}</h3>
+
+<p><a href="{{ puzzle.site.url|escape }}">go there</a></p>
+
+<section class="puzzle site-{{ puzzle.site.css_class|escape }}">
+
+<div class="head">{{ puzzle.head|escape }}</div>
+
+{% if puzzle.site.variant == "geo" %}
+  {% for (guess, solution) in puzzle.guess_lines %}
+  <div class="field-row guess-row">
+    {%- for g in guess.chars() -%}
+      {%- if g == 'C' || g == 'M' || g == 'W' -%}
+        <div class="field-box guess-{{ g|escape }}"></div>
+      {%- else -%}
+        <div class="arrow-box">{{ g|escape }}&#65039;</div>
+      {%- endif -%}
+    {%- endfor -%}
+    <div class="guess-box">{{ solution|escape }}</div>
+  </div>
+  {% endfor %}
+
+  {% if !puzzle.solved %}
+  <div class="field-row solution-row">
+    <div class="guess-box">{{ puzzle.solution|escape }}</div>
+  </div>
+  {% endif %}
+
+{% else %}
+
+<div class="field">
+{% for (guess, solution) in puzzle.guess_lines %}
+<div class="field-row guess-row">
+  {%- for (g, s) in guess.chars().zip(solution.chars()) -%}
+  <div class="field-box guess-{{ g|escape }}">{{ s|escape }}</div>
+  {%- endfor -%}
+</div>
+{% endfor %}
+
+{% if !puzzle.solved %}
+<div class="field-row solution-row">
+  {%- for s in puzzle.solution.chars() -%}
+  <div class="field-box solution">{{ s|escape }}</div>
+  {%- endfor -%}
+</div>
+{% endif %}
+
+</div>
+{% endif %}
+
+<div class="tail">{{ puzzle.tail|escape }}</div>
+
+</section>
+
+{% endfor %}
+
+{% endblock %}

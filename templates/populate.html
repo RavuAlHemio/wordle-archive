@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block title %}Populate a Puzzle{% endblock %}
+
+{% block content %}
+<h1>Populate a Puzzle</h1>
+
+<form method="post">
+
+<p>
+  <label>
+    Site:<br/>
+    <select name="site" required="required">
+      {% for site in sites %}
+        <option value="{{ site.id }}">{{ site.name|escape }}</option>
+      {% endfor %}
+    </select>
+  </label>
+</p>
+
+<p>
+  <label>
+    Result:<br/>
+    <textarea name="result" required="required"></textarea>
+  </label>
+</p>
+
+<p>
+  <label>
+    Guesses:<br/>
+    <textarea name="solution" required="required"></textarea>
+  </label>
+</p>
+
+<p>
+  <label>
+    Daily ordinal:
+    <input type="number" name="day-ordinal" required="required" min="0" value="0" />
+  </label>
+</p>
+
+<p><input type="submit" value="record" /></p>
+
+</form>
+{% endblock %}

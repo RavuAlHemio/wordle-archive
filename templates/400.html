@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+
+{% block title %}Invalid Request{% endblock %}
+
+{% block content %}
+<h1>Invalid Request</h1>
+
+<p><code>{{ reason|escape }}</code></p>
+{% endblock %}

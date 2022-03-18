@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta charset="utf-8" />
+<title>{% block title %}Untitled{% endblock %}</title>
+<style type="text/css">
+body {
+  font-family: sans-serif;
+}
+section.puzzle {
+  border: 1px solid #000;
+  padding: 0.2em;
+}
+.field-box, .arrow-box, .guess-box {
+  display: inline-block;
+  height: 2em;
+}
+.field-box, .arrow-box {
+  width: 2em;
+  font-weight: bold;
+  font-size: 120%;
+}
+.guess-box {
+  min-width: 2em;
+}
+.field-box {
+  color: #fff;
+  text-align: center;
+  vertical-align: middle;
+  margin: 0.1em;
+}
+.field-box.guess-W { background-color: #3a3a3c; }
+.field-box.guess-M { background-color: #b59f3b; }
+.field-box.guess-C { background-color: #538d4e; }
+.field-box.solution { background-color: #bf5e2d; }
+</style>
+</head>
+<body>
+{% block content %}
+<h1>Untitled</h1>
+{% endblock %}
+</body>
+</html>
