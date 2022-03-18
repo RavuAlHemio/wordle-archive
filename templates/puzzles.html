@@ -62,6 +62,26 @@
   </div>
   {% endif %}
 
+{% else if puzzle.site.variant == "audio" %}
+
+  {% for (guess, solution) in puzzle.guess_lines %}
+  <div class="field-row guess-row">
+    {%- for g in guess.chars() -%}
+      <div class="field-box guess-{{ g|escape }}"></div>
+    {%- endfor -%}
+
+    {% if spoil %}
+      <div class="guess-box">{{ solution|escape }}</div>
+    {% endif %}
+  </div>
+  {% endfor %}
+
+  {% if spoil && !puzzle.solved %}
+  <div class="field-row solution-row">
+    <div class="guess-box">{{ puzzle.solution|escape }}</div>
+  </div>
+  {% endif %}
+
 {% else %}
 
 <div class="field">

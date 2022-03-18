@@ -97,6 +97,12 @@ static GEO_RESULT_BLOCK_RE: Lazy<Regex> = Lazy::new(|| Regex::new(concat!(
     ")*",
 )).unwrap());
 
+static AUDIO_RESULT_BLOCK_RE: Lazy<Regex> = Lazy::new(|| Regex::new(concat!(
+    // squares as above, but only one row
+    // emoji variant selector optionally after each square
+    "(?:[\u{2B1B}\u{2B1C}\u{1F7E5}-\u{1F7EB}]\u{FE0F}?)+",
+)).unwrap());
+
 
 fn return_500() -> Result<Response<Body>, Infallible> {
     let body = Body::from("500 Internal Server Error");
@@ -432,12 +438,12 @@ async fn handle_populate_get(_req: Request<Body>) -> Result<Response<Body>, Infa
 
 fn decode_square(square: char) -> Option<char> {
     match square {
-        // black, white, red => wrong
-        // (red by assumption)
-        '\u{2B1B}'|'\u{2B1C}'|'\u{1F7E5}' => Some('W'),
-        // orange, yellow, purple, brown => misplaced
-        // (purple via Nerdle, orange and brown by assumption)
-        '\u{1F7E7}'|'\u{1F7E8}'|'\u{1F7EA}'|'\u{1F7EB}' => Some('M'),
+        // black, white => wrong
+        '\u{2B1B}'|'\u{2B1C}' => Some('W'),
+        // red, orange, yellow, purple, brown => misplaced
+        // (purple via Nerdle, orange and brown by assumption;
+        // red from Heardle to differentiate from wrong = skipped)
+        '\u{1F7E5}'|'\u{1F7E7}'|'\u{1F7E8}'|'\u{1F7EA}'|'\u{1F7EB}' => Some('M'),
         // blue, green => correct
         // (blue by assumption)
         '\u{1F7E6}'|'\u{1F7E9}' => Some('C'),
@@ -524,6 +530,43 @@ async fn handle_populate_post(req: Request<Body>) -> Result<Response<Body>, Infa
                 }
             }
             (&result[0..m.start()], &result[m.end()..], result_string)
+        } else {
+            return return_400("failed to decode guesses");
+        }
+    } else if site.variant == "audio" {
+        let solution_lines: Vec<&str> = solution.split('\n').collect();
+        if let Some(m) = AUDIO_RESULT_BLOCK_RE.find(&result) {
+            let mut result_string = String::new();
+            for c in m.as_str().chars() {
+                if c == '\u{FE0F}' {
+                    // emoji variant selector; skip it
+                } else if let Some(sq) = decode_square(c) {
+                    result_string.push(sq);
+                    if sq == 'C' {
+                        // correct answer! stop here
+                        break;
+                    }
+                }
+            }
+
+            let expected_line_count = result_string.chars().count();
+            if expected_line_count != solution_lines.len() {
+                return return_400(format!(
+                    "{} guesses derived from result {:?}, {} solution lines; must be the same",
+                    expected_line_count, result_string, solution_lines.len(),
+                ));
+            }
+
+            // intersperse newline characters in the result string
+            let mut newline_result_string = String::with_capacity(result_string.len()*2);
+            for c in result_string.chars() {
+                if newline_result_string.len() > 0 {
+                    newline_result_string.push('\n');
+                }
+                newline_result_string.push(c);
+            }
+
+            (&result[0..m.start()], &result[m.end()..], newline_result_string)
         } else {
             return return_400("failed to decode guesses");
         }
