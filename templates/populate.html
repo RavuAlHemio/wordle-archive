@@ -11,9 +11,20 @@
   <label>
     Site:<br/>
     <select name="site" required="required">
-      {% for site in sites %}
-        <option value="{{ site.id }}">{{ site.name|escape }}</option>
-      {% endfor %}
+      <optgroup label="Not yet solved today">
+        {% for site in sites %}
+          {% if !solved_sites.contains(site.id) %}
+            <option value="{{ site.id }}">{{ site.name|escape }}</option>
+          {% endif %}
+        {% endfor %}
+      </optgroup>
+      <optgroup label="Already solved today">
+        {% for site in sites %}
+          {% if solved_sites.contains(site.id) %}
+            <option value="{{ site.id }}">{{ site.name|escape }}</option>
+          {% endif %}
+        {% endfor %}
+      </optgroup>
     </select>
   </label>
 </p>

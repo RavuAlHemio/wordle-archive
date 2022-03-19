@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use chrono::NaiveDate;
 use log::error;
 use tokio_postgres::{self, NoTls};
@@ -81,6 +83,34 @@ impl DbConnection {
             });
         }
         Some(sites)
+    }
+
+    pub async fn get_solved_sites_for_date(&self, date: NaiveDate) -> Option<HashSet<i64>> {
+        let rows_res = self.client.query(
+            "
+                SELECT s.id
+                FROM wordle_archive.sites s
+                WHERE EXISTS (
+                    SELECT 1 FROM wordle_archive.puzzles p
+                    WHERE p.site_id = s.id
+                    AND p.puzzle_date = $1
+                )
+            ",
+            &[&date],
+        ).await;
+        let mut site_ids = HashSet::new();
+        let rows = match rows_res {
+            Ok(rs) => rs,
+            Err(e) => {
+                error!("error querying solved sites: {}", e);
+                return None;
+            },
+        };
+        for row in rows {
+            let site_id: i64 = row.get(0);
+            site_ids.insert(site_id);
+        }
+        Some(site_ids)
     }
 
     pub async fn get_most_recent_puzzle_date(&self) -> OptionResult<NaiveDate> {

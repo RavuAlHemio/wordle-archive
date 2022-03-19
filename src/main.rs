@@ -4,7 +4,7 @@ mod model;
 
 
 use std::borrow::Cow;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::convert::Infallible;
 use std::path::PathBuf;
 
@@ -70,10 +70,11 @@ struct PuzzlePart {
     pub solution: String,
 }
 
-#[derive(Clone, Debug, Eq, Hash, PartialEq, Template)]
+#[derive(Clone, Debug, Eq, PartialEq, Template)]
 #[template(path = "populate.html")]
 struct PopulateTemplate {
     pub sites: Vec<PuzzleSite>,
+    pub solved_sites: HashSet<i64>,
 }
 
 
@@ -429,9 +430,15 @@ async fn handle_populate_get(_req: Request<Body>) -> Result<Response<Body>, Infa
         Some(ps) => ps,
         None => return return_500(), // error already logged
     };
+    let today = Local::today().naive_local();
+    let solved_sites = match db_conn.get_solved_sites_for_date(today).await {
+        Some(ss) => ss,
+        None => return return_500(),
+    };
 
     let template = PopulateTemplate {
         sites,
+        solved_sites,
     };
     render_template(&template, 200, HashMap::new())
 }
