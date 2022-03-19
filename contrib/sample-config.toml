@@ -1,0 +1,6 @@
+listen_addr = "127.0.0.1:8084"
+base_path = "/wordle-archive/"
+db_conn_string = "host=localhost port=5432 user=wordleuser password=34beBNVeAIJwAHw2ZUO1Dd0xagnrFtzM dbname=wordledb"
+write_tokens = [
+    "ChJMR_wS0J23vmpnzZGb0Etxd9uxE-OaLIGNkeTY25A",
+]
