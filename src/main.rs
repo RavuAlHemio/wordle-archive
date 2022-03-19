@@ -549,7 +549,12 @@ async fn handle_populate_post(req: Request<Body>) -> Result<Response<Body>, Infa
                 }
             }
 
-            let expected_line_count = result_string.chars().count();
+            let victory = result_string.chars().any(|c| c == 'C');
+            let expected_line_count = if victory {
+                result_string.chars().count()
+            } else {
+                result_string.chars().count() + 1
+            };
             if expected_line_count != solution_lines.len() {
                 return return_400(format!(
                     "{} guesses derived from result {:?}, {} solution lines; must be the same",
