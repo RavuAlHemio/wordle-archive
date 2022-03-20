@@ -77,6 +77,10 @@ struct PopulateTemplate {
     pub solved_sites: HashSet<i64>,
 }
 
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd, Template)]
+#[template(path = "populate-success.html")]
+struct PopulateSuccessTemplate;
+
 
 static RESULT_BLOCK_RE: Lazy<Regex> = Lazy::new(|| Regex::new(concat!(
     // squares: black, white, [red, blue, orange, yellow, green, purple, brown]
@@ -636,16 +640,7 @@ async fn handle_populate_post(req: Request<Body>) -> Result<Response<Body>, Infa
     if !db_conn.store_puzzle(&puzzle).await {
         return_500()
     } else {
-        let resp_res = Response::builder()
-            .header("Content-Type", "text/plain; charset=utf8")
-            .body(Body::from("OK"));
-        match resp_res {
-            Ok(r) => Ok(r),
-            Err(e) => {
-                error!("failed to construct OK response: {}", e);
-                return_500()
-            },
-        }
+        render_template(&PopulateSuccessTemplate, 200, HashMap::new())
     }
 }
 
