@@ -158,6 +158,32 @@ fn to_path_segments<'a>(path: &'a str) -> Option<Vec<Cow<'a, str>>> {
     Some(segments)
 }
 
+fn get_query_pairs(uri: &hyper::Uri) -> HashMap<Cow<str>, Cow<str>> {
+    if let Some(query_string) = uri.query() {
+        form_urlencoded::parse(query_string.as_bytes())
+            .collect()
+    } else {
+        HashMap::new()
+    }
+}
+
+async fn has_valid_token(query_pairs: &HashMap<Cow<'_, str>, Cow<'_, str>>, value_if_no_token_configured: bool) -> bool {
+    let config_guard = CONFIG
+        .get().expect("CONFIG not set")
+        .read().await;
+    if config_guard.write_tokens.len() == 0 {
+        return value_if_no_token_configured;
+    }
+
+    if let Some(token) = query_pairs.get("token") {
+        if config_guard.write_tokens.iter().any(|t| t == token) {
+            return true;
+        }
+    }
+
+    false
+}
+
 fn render_template<T: Template>(
     template: &T,
     status: u16,
@@ -310,13 +336,10 @@ async fn handle_wordle<S: AsRef<str>>(
     };
 
     let mut spoil = false;
-    if let Some(query_string) = req.uri().query() {
-        let query_pairs: HashMap<Cow<str>, Cow<str>> = form_urlencoded::parse(query_string.as_bytes())
-            .collect();
-        if let Some(spoil_str) = query_pairs.get("spoil") {
-            if let Ok(spoil_bool) = spoil_str.parse() {
-                spoil = spoil_bool;
-            }
+    let query_pairs = get_query_pairs(req.uri());
+    if let Some(spoil_str) = query_pairs.get("spoil") {
+        if let Ok(spoil_bool) = spoil_str.parse() {
+            spoil = spoil_bool;
         }
     }
 
@@ -340,7 +363,9 @@ async fn handle_wordle<S: AsRef<str>>(
         },
     };
 
-    let allow_spoiling = check_allow_spoiling(&date).await;
+    let allow_public_spoiling = check_allow_spoiling(&date).await;
+    let allow_private_spoiling = has_valid_token(&query_pairs, false).await;
+    let allow_spoiling = allow_public_spoiling || allow_private_spoiling;
     if !allow_spoiling {
         spoil = false;
     }
@@ -376,13 +401,10 @@ async fn handle_puzzle<S: AsRef<str>>(
     };
 
     let mut spoil = false;
-    if let Some(query_string) = req.uri().query() {
-        let query_pairs: HashMap<Cow<str>, Cow<str>> = form_urlencoded::parse(query_string.as_bytes())
-            .collect();
-        if let Some(spoil_str) = query_pairs.get("spoil") {
-            if let Ok(spoil_bool) = spoil_str.parse() {
-                spoil = spoil_bool;
-            }
+    let query_pairs = get_query_pairs(req.uri());
+    if let Some(spoil_str) = query_pairs.get("spoil") {
+        if let Ok(spoil_bool) = spoil_str.parse() {
+            spoil = spoil_bool;
         }
     }
 
@@ -398,7 +420,9 @@ async fn handle_puzzle<S: AsRef<str>>(
     };
     let puzzle = db_puzzle_to_puzzle_part(&db_puzzle);
 
-    let allow_spoiling = check_allow_spoiling(&db_puzzle.puzzle.date).await;
+    let allow_public_spoiling = check_allow_spoiling(&db_puzzle.puzzle.date).await;
+    let allow_private_spoiling = has_valid_token(&query_pairs, false).await;
+    let allow_spoiling = allow_public_spoiling || allow_private_spoiling;
     if !allow_spoiling {
         spoil = false;
     }
@@ -414,23 +438,9 @@ async fn handle_puzzle<S: AsRef<str>>(
 
 async fn handle_populate(req: Request<Body>) -> Result<Response<Body>, Infallible> {
     // check for token
-    let config_guard = CONFIG
-        .get().expect("CONFIG not set")
-        .read().await;
-    if config_guard.write_tokens.len() > 0 {
-        let mut is_ok = false;
-        if let Some(query_string) = req.uri().query() {
-            let query_pairs: HashMap<Cow<str>, Cow<str>> = form_urlencoded::parse(query_string.as_bytes())
-                .collect();
-            if let Some(token) = query_pairs.get("token") {
-                if config_guard.write_tokens.iter().any(|t| t == token) {
-                    is_ok = true;
-                }
-            }
-        }
-        if !is_ok {
-            return return_403();
-        }
+    let query_pairs = get_query_pairs(req.uri());
+    if !has_valid_token(&query_pairs, true).await {
+        return return_403();
     }
 
     if req.method() == Method::POST {
