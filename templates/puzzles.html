@@ -23,10 +23,12 @@
     {% endif %}
   {% endif %}
 
-  {% if !spoil %}
-    <a href="?spoil=true" title="spoil the answers">&#128065;&#65039;</a>
-  {% else %}
-    <span class="disabled-link">&#128065;&#65039;</span>
+  {% if allow_spoiling %}
+    {% if !spoil %}
+      <a href="?spoil=true" title="spoil the answers">&#128065;&#65039;</a>
+    {% else %}
+      <span class="disabled-link">&#128065;&#65039;</span>
+    {% endif %}
   {% endif %}
 </p>
 

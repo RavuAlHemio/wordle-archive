@@ -9,7 +9,7 @@ use std::convert::Infallible;
 use std::path::PathBuf;
 
 use askama::Template;
-use chrono::{Local, NaiveDate};
+use chrono::{Duration, Local, NaiveDate};
 use clap::Parser;
 use env_logger;
 use form_urlencoded;
@@ -53,6 +53,7 @@ struct NoPuzzlesTemplate;
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Template)]
 #[template(path = "puzzles.html")]
 struct PuzzlesTemplate {
+    pub allow_spoiling: bool,
     pub spoil: bool,
     pub puzzles: Vec<PuzzlePart>,
     pub date_opt: Option<NaiveDate>,
@@ -278,6 +279,22 @@ fn db_puzzle_to_puzzle_part(db_puzzle: &SiteAndPuzzle) -> PuzzlePart {
     }
 }
 
+async fn check_allow_spoiling(puzzle_date: &NaiveDate) -> bool {
+    let spoiler_protection_days = {
+        let config_guard = CONFIG
+            .get().expect("CONFIG not set")
+            .read().await;
+        config_guard.spoiler_protection_days
+    };
+    if spoiler_protection_days < 0 {
+        // no spoilers, ever
+        false
+    } else {
+        let most_recent_unprotected_day = Local::today().naive_local() - Duration::days(spoiler_protection_days);
+        puzzle_date <= &most_recent_unprotected_day
+    }
+}
+
 async fn handle_wordle<S: AsRef<str>>(
     req: Request<Body>,
     date_string_opt: Option<S>,
@@ -323,6 +340,11 @@ async fn handle_wordle<S: AsRef<str>>(
         },
     };
 
+    let allow_spoiling = check_allow_spoiling(&date).await;
+    if !allow_spoiling {
+        spoil = false;
+    }
+
     // obtain puzzles on that date
     let db_puzzles = match db_conn.get_puzzles_on_date(date).await {
         Some(ps) => ps,
@@ -336,6 +358,7 @@ async fn handle_wordle<S: AsRef<str>>(
     }
 
     let template = PuzzlesTemplate {
+        allow_spoiling,
         spoil,
         puzzles,
         date_opt: Some(date),
@@ -375,7 +398,13 @@ async fn handle_puzzle<S: AsRef<str>>(
     };
     let puzzle = db_puzzle_to_puzzle_part(&db_puzzle);
 
+    let allow_spoiling = check_allow_spoiling(&db_puzzle.puzzle.date).await;
+    if !allow_spoiling {
+        spoil = false;
+    }
+
     let template = PuzzlesTemplate {
+        allow_spoiling,
         spoil,
         puzzles: vec![puzzle],
         date_opt: None,

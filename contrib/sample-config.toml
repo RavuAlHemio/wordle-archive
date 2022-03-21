@@ -4,3 +4,4 @@ db_conn_string = "host=localhost port=5432 user=wordleuser password=34beBNVeAIJw
 write_tokens = [
     "ChJMR_wS0J23vmpnzZGb0Etxd9uxE-OaLIGNkeTY25A",
 ]
+spoiler_protection_days = 1

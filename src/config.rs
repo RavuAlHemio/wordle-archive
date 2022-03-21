@@ -20,6 +20,7 @@ pub(crate) struct Config {
     pub base_path: String,
     pub db_conn_string: String,
     #[serde(default)] pub write_tokens: HashSet<String>,
+    #[serde(default)] pub spoiler_protection_days: i64,
 }
 
 pub(crate) fn load_config() -> Option<Config> {
