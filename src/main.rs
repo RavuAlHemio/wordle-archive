@@ -441,6 +441,7 @@ async fn handle_populate(req: Request<Body>) -> Result<Response<Body>, Infallibl
         let body = Body::from("invalid method; requires GET or POST");
         let response_res = Response::builder()
             .status(405)
+            .header("Content-Type", "text/plain; charset=utf-8")
             .header("Allow", "GET, POST")
             .body(body);
         match response_res {
