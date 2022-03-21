@@ -57,6 +57,7 @@ struct PuzzlesTemplate {
     pub spoil: bool,
     pub puzzles: Vec<PuzzlePart>,
     pub date_opt: Option<NaiveDate>,
+    pub token: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -382,11 +383,14 @@ async fn handle_wordle<S: AsRef<str>>(
         puzzles.push(db_puzzle_to_puzzle_part(db_puzzle));
     }
 
+    let token = query_pairs.get("token").map(|t| t.clone().into_owned());
+
     let template = PuzzlesTemplate {
         allow_spoiling,
         spoil,
         puzzles,
         date_opt: Some(date),
+        token,
     };
     render_template(&template, 200, HashMap::new())
 }
@@ -427,11 +431,14 @@ async fn handle_puzzle<S: AsRef<str>>(
         spoil = false;
     }
 
+    let token = query_pairs.get("token").map(|t| t.clone().into_owned());
+
     let template = PuzzlesTemplate {
         allow_spoiling,
         spoil,
         puzzles: vec![puzzle],
         date_opt: None,
+        token,
     };
     render_template(&template, 200, HashMap::new())
 }

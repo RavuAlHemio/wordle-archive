@@ -12,12 +12,12 @@
 <p class="date-nav">
   {% if let Some(date) = date_opt %}
     {% if let Some(yesterday) = date.pred_opt() %}
-      <a href="{{ yesterday.format("%Y-%m-%d")|escape }}" title="one day back">&#11013;&#65039;</a>
+      <a href="{{ yesterday.format("%Y-%m-%d")|escape }}{% if let Some(tok) = token %}?token={{ tok|urlencode|escape }}{% endif %}" title="one day back">&#11013;&#65039;</a>
     {% else %}
       <span class="disabled-link">&#11013;&#65039;</span>
     {% endif %}
     {% if let Some(tomorrow) = date.succ_opt() %}
-      <a href="{{ tomorrow.format("%Y-%m-%d")|escape }}" title="one day forward">&#10145;&#65039;</a>
+      <a href="{{ tomorrow.format("%Y-%m-%d")|escape }}{% if let Some(tok) = token %}?token={{ tok|urlencode|escape }}{% endif %}" title="one day forward">&#10145;&#65039;</a>
     {% else %}
       <span class="disabled-link">&#10145;&#65039;</span>
     {% endif %}
@@ -25,7 +25,7 @@
 
   {% if allow_spoiling %}
     {% if !spoil %}
-      <a href="?spoil=true" title="spoil the answers">&#128065;&#65039;</a>
+      <a href="?spoil=true{% if let Some(tok) = token %}&amp;token={{ tok|urlencode|escape }}{% endif %}" title="spoil the answers">&#128065;&#65039;</a>
     {% else %}
       <span class="disabled-link">&#128065;&#65039;</span>
     {% endif %}
