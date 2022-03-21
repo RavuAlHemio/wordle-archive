@@ -53,4 +53,13 @@
 <p><input type="submit" value="record" /></p>
 
 </form>
+
+<p>
+  today&#8217;s puzzles:
+  <a href="wordle/{{ today_string|urlencode|escape }}">public</a>
+  {% if let Some(tok) = token %}
+    &middot;
+    <a href="wordle/{{ today_string|urlencode|escape }}?token={{ tok|urlencode|escape }}">with token</a>
+  {% endif %}
+</p>
 {% endblock %}

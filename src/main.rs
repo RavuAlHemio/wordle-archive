@@ -77,6 +77,8 @@ struct PuzzlePart {
 struct PopulateTemplate {
     pub sites: Vec<PuzzleSite>,
     pub solved_sites: HashSet<i64>,
+    pub today_string: String,
+    pub token: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd, Template)]
@@ -453,7 +455,7 @@ async fn handle_populate(req: Request<Body>) -> Result<Response<Body>, Infallibl
     if req.method() == Method::POST {
         handle_populate_post(req).await
     } else if req.method() == Method::GET {
-        handle_populate_get(req).await
+        handle_populate_get(&req, &query_pairs).await
     } else {
         let body = Body::from("invalid method; requires GET or POST");
         let response_res = Response::builder()
@@ -471,7 +473,7 @@ async fn handle_populate(req: Request<Body>) -> Result<Response<Body>, Infallibl
     }
 }
 
-async fn handle_populate_get(_req: Request<Body>) -> Result<Response<Body>, Infallible> {
+async fn handle_populate_get(_req: &Request<Body>, query_pairs: &HashMap<Cow<'_, str>, Cow<'_, str>>) -> Result<Response<Body>, Infallible> {
     let db_conn = match DbConnection::new().await {
         Some(c) => c,
         None => return return_500(), // error already logged
@@ -486,10 +488,14 @@ async fn handle_populate_get(_req: Request<Body>) -> Result<Response<Body>, Infa
         Some(ss) => ss,
         None => return return_500(),
     };
+    let today_string = today.format("%Y-%m-%d").to_string();
+    let token = query_pairs.get("token").map(|t| t.clone().into_owned());
 
     let template = PopulateTemplate {
         sites,
         solved_sites,
+        today_string,
+        token,
     };
     render_template(&template, 200, HashMap::new())
 }
