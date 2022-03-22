@@ -15,7 +15,7 @@ jobs:
         run: cargo build --release --all-targets
       - name: run release tests
         run: cargo test --release
-      - name: upload debug binary
+      - name: upload release binary
         uses: actions/upload-artifact@v2
         with:
           name: wordle-archive-release
