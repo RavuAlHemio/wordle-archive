@@ -20,6 +20,7 @@ pub(crate) struct Puzzle {
     pub tail: String,
     pub pattern: String,
     pub solution: String,
+    pub victory: bool,
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]

@@ -69,7 +69,7 @@ struct PuzzlePart {
     pub head: String,
     pub tail: String,
     pub guess_lines: Vec<(String, String)>,
-    pub solved: bool,
+    pub victory: bool,
     pub solution: String,
 }
 
@@ -304,7 +304,7 @@ fn db_puzzle_to_puzzle_part(db_puzzle: &SiteAndPuzzle) -> PuzzlePart {
         head: db_puzzle.puzzle.head.clone(),
         tail: db_puzzle.puzzle.tail.clone(),
         guess_lines,
-        solved: pattern_lines.len() == solution_lines.len(),
+        victory: db_puzzle.puzzle.victory,
         solution: (*solution_lines.last().unwrap()).to_owned(),
     }
 }
@@ -575,7 +575,7 @@ async fn handle_populate_post(req: Request<Body>) -> Result<Response<Body>, Infa
         None => return return_400("missing field \"solution\""),
     };
 
-    let (head, tail, pattern, solution) = if site.variant == "geo" {
+    let (head, tail, pattern, solution, victory) = if site.variant == "geo" {
         if let Some(m) = GEO_RESULT_BLOCK_RE.find(&result) {
             let mut result_string = String::new();
             for line in m.as_str().split("\n") {
@@ -594,7 +594,15 @@ async fn handle_populate_post(req: Request<Body>) -> Result<Response<Body>, Infa
                     }
                 }
             }
-            (&result[0..m.start()], &result[m.end()..], result_string, raw_solution.trim())
+
+            let last_result_line = result_string.split("\n").last().unwrap();
+            let victory =
+                last_result_line.contains('C')
+                && !last_result_line.contains('M')
+                && !last_result_line.contains('W')
+            ;
+
+            (&result[0..m.start()], &result[m.end()..], result_string, raw_solution.trim(), victory)
         } else {
             return return_400("failed to decode guesses");
         }
@@ -636,7 +644,7 @@ async fn handle_populate_post(req: Request<Body>) -> Result<Response<Body>, Infa
                 newline_result_string.push(c);
             }
 
-            (&result[0..m.start()], &result[m.end()..], newline_result_string, raw_solution.as_str())
+            (&result[0..m.start()], &result[m.end()..], newline_result_string, raw_solution.as_str(), victory)
         } else {
             return return_400("failed to decode guesses");
         }
@@ -675,7 +683,7 @@ async fn handle_populate_post(req: Request<Body>) -> Result<Response<Body>, Infa
                 ));
             }
 
-            (&result[0..m.start()], &result[m.end()..], result_string, solution)
+            (&result[0..m.start()], &result[m.end()..], result_string, solution, victory_index_opt.is_some())
         } else {
             return return_400("failed to decode guesses");
         }
@@ -690,6 +698,7 @@ async fn handle_populate_post(req: Request<Body>) -> Result<Response<Body>, Infa
         tail: tail.to_owned(),
         pattern,
         solution: solution.to_string(),
+        victory,
     };
     if !db_conn.store_puzzle(&puzzle).await {
         return_500()

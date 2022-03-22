@@ -58,7 +58,7 @@
   </div>
   {% endfor -%}
 
-  {% if spoil && !puzzle.solved -%}
+  {% if spoil && !puzzle.victory -%}
   <div class="field-row solution-row">
     <div class="guess-box">{{ puzzle.solution|escape }}</div>
   </div>
@@ -78,7 +78,7 @@
   </div>
   {% endfor -%}
 
-  {% if spoil && !puzzle.solved -%}
+  {% if spoil && !puzzle.victory -%}
   <div class="field-row solution-row">
     <div class="guess-box">{{ puzzle.solution|escape }}</div>
   </div>
@@ -95,7 +95,7 @@
 </div>
 {% endfor -%}
 
-{% if spoil && !puzzle.solved -%}
+{% if spoil && !puzzle.victory -%}
 <div class="field-row solution-row">
   {%- for s in puzzle.solution.chars() -%}
   <div class="field-box solution">{{ s|escape }}</div>
