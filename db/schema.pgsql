@@ -24,7 +24,7 @@ CREATE TABLE wordle_archive.puzzles
 , tail text NOT NULL
 , pattern text NOT NULL
 , solution text NOT NULL
-, victory boolean NOT NULL
+, attempts bigint NULL
 , CONSTRAINT pkey__puzzles PRIMARY KEY (id)
 , CONSTRAINT fkey__puzzles__site_id FOREIGN KEY (site_id) REFERENCES wordle_archive.sites(id)
 , CONSTRAINT uq__puzzles__site_puzzle_day UNIQUE (site_id, puzzle_date, day_ordinal)
@@ -44,7 +44,7 @@ CREATE VIEW wordle_archive.sites_and_puzzles AS
         p.tail,
         p.pattern,
         p.solution,
-        p.victory
+        p.attempts
     FROM
         wordle_archive.sites s
         INNER JOIN wordle_archive.puzzles p

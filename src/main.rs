@@ -69,8 +69,11 @@ struct PuzzlePart {
     pub head: String,
     pub tail: String,
     pub guess_lines: Vec<(String, String)>,
-    pub victory: bool,
+    pub attempts: Option<i64>,
     pub solution: String,
+}
+impl PuzzlePart {
+    #[inline] pub fn victory(&self) -> bool { self.attempts.is_some() }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Template)]
@@ -304,7 +307,7 @@ fn db_puzzle_to_puzzle_part(db_puzzle: &SiteAndPuzzle) -> PuzzlePart {
         head: db_puzzle.puzzle.head.clone(),
         tail: db_puzzle.puzzle.tail.clone(),
         guess_lines,
-        victory: db_puzzle.puzzle.victory,
+        attempts: db_puzzle.puzzle.attempts,
         solution: (*solution_lines.last().unwrap()).to_owned(),
     }
 }
@@ -575,7 +578,7 @@ async fn handle_populate_post(req: Request<Body>) -> Result<Response<Body>, Infa
         None => return return_400("missing field \"solution\""),
     };
 
-    let (head, tail, pattern, solution, victory) = if site.variant == "geo" {
+    let (head, tail, pattern, solution, attempts) = if site.variant == "geo" {
         if let Some(m) = GEO_RESULT_BLOCK_RE.find(&result) {
             let mut result_string = String::new();
             for line in m.as_str().split("\n") {
@@ -601,8 +604,13 @@ async fn handle_populate_post(req: Request<Body>) -> Result<Response<Body>, Infa
                 && !last_result_line.contains('M')
                 && !last_result_line.contains('W')
             ;
+            let attempts = if victory {
+                Some(result_string.bytes().filter(|b| *b == b'\n').count() + 1)
+            } else {
+                None
+            };
 
-            (&result[0..m.start()], &result[m.end()..], result_string, raw_solution.trim(), victory)
+            (&result[0..m.start()], &result[m.end()..], result_string, raw_solution.trim(), attempts)
         } else {
             return return_400("failed to decode guesses");
         }
@@ -644,7 +652,13 @@ async fn handle_populate_post(req: Request<Body>) -> Result<Response<Body>, Infa
                 newline_result_string.push(c);
             }
 
-            (&result[0..m.start()], &result[m.end()..], newline_result_string, raw_solution.as_str(), victory)
+            let attempts = if victory {
+                Some(newline_result_string.bytes().filter(|b| *b == b'\n').count() + 1)
+            } else {
+                None
+            };
+
+            (&result[0..m.start()], &result[m.end()..], newline_result_string, raw_solution.as_str(), attempts)
         } else {
             return return_400("failed to decode guesses");
         }
@@ -683,11 +697,16 @@ async fn handle_populate_post(req: Request<Body>) -> Result<Response<Body>, Infa
                 ));
             }
 
-            (&result[0..m.start()], &result[m.end()..], result_string, solution, victory_index_opt.is_some())
+            let attempts = victory_index_opt.map(|vi| vi + 1);
+
+            (&result[0..m.start()], &result[m.end()..], result_string, solution, attempts)
         } else {
             return return_400("failed to decode guesses");
         }
     };
+
+    let attempts_i64 = attempts
+        .map(|a| a.try_into().expect("failed to convert attempt count to i64"));
 
     let puzzle = Puzzle {
         id: -1,
@@ -698,7 +717,7 @@ async fn handle_populate_post(req: Request<Body>) -> Result<Response<Body>, Infa
         tail: tail.to_owned(),
         pattern,
         solution: solution.to_string(),
-        victory,
+        attempts: attempts_i64,
     };
     if !db_conn.store_puzzle(&puzzle).await {
         return_500()

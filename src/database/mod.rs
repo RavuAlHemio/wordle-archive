@@ -1,4 +1,5 @@
 mod migrations_r0001;
+pub(crate) mod migration_utils;
 
 
 use std::collections::HashSet;
@@ -48,9 +49,10 @@ impl DbConnection {
         });
 
         // run migrations
-        let current_migrations: [&(dyn DbMigration); 2] = [
+        let current_migrations: [&(dyn DbMigration); 3] = [
             &migrations_r0001::MigrationR0001ToR0002,
             &migrations_r0001::MigrationR0002ToR0003,
+            &migrations_r0001::MigrationR0003ToR0004,
         ];
         for migration in current_migrations {
             match migration.is_required(&client).await {
@@ -170,7 +172,7 @@ impl DbConnection {
         let tail = row.get(9);
         let pattern = row.get(10);
         let solution = row.get(11);
-        let victory = row.get(12);
+        let attempts = row.get(12);
 
         let site = PuzzleSite {
             id: site_id,
@@ -188,7 +190,7 @@ impl DbConnection {
             tail,
             pattern,
             solution,
-            victory,
+            attempts,
         };
         SiteAndPuzzle {
             site,
@@ -201,7 +203,7 @@ impl DbConnection {
             "
                 SELECT
                     site_id, site_name, site_url, site_css_class, variant, puzzle_id, puzzle_date,
-                    day_ordinal, head, tail, pattern, solution, victory
+                    day_ordinal, head, tail, pattern, solution, attempts
                 FROM
                     wordle_archive.sites_and_puzzles
                 WHERE
@@ -233,7 +235,7 @@ impl DbConnection {
             "
                 SELECT
                     site_id, site_name, site_url, site_css_class, variant, puzzle_id, puzzle_date,
-                    day_ordinal, head, tail, pattern, solution, victory
+                    day_ordinal, head, tail, pattern, solution, attempts
                 FROM
                     wordle_archive.sites_and_puzzles
                 WHERE
@@ -261,13 +263,13 @@ impl DbConnection {
             "
                 INSERT INTO
                     wordle_archive.puzzles
-                    (site_id, puzzle_date, day_ordinal, head, tail, pattern, solution, victory)
+                    (site_id, puzzle_date, day_ordinal, head, tail, pattern, solution, attempts)
                 VALUES
                     ($1, $2, $3, $4, $5, $6, $7, $8)
             ",
             &[
                 &puzzle.site_id, &puzzle.date, &puzzle.day_ordinal, &puzzle.head, &puzzle.tail,
-                &puzzle.pattern, &puzzle.solution, &puzzle.victory,
+                &puzzle.pattern, &puzzle.solution, &puzzle.attempts,
             ],
         ).await;
         if let Err(e) = res {
