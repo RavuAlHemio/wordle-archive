@@ -8,9 +8,11 @@ jobs:
       - name: update packages
         run: pacman -Syu --noconfirm
       - name: install packages
-        run: pacman -S --needed --noconfirm cargo git
+        run: pacman -S --needed --noconfirm cargo git python
       - name: check out repository code
         uses: actions/checkout@v2
+      - name: add version stamp
+        run: python3 cicd/version_stamp.py
       - name: run debug build
         run: cargo build --all-targets
       - name: run debug tests
