@@ -2,6 +2,35 @@
 
 {% block title %}Populate a Puzzle{% endblock %}
 
+{% block addhead %}
+<script type="text/javascript">
+  var sitesUrls = {
+    {% for site in sites -%}
+    {{ site.id.to_string()|jsstring|safe }}: {{ site.url|jsstring|safe }}{% if !loop.last %},{% endif %}
+    {% endfor -%}
+  };
+  document.addEventListener('DOMContentLoaded', function () {
+    function performChange() {
+      var siteLink = document.getElementById('wordle-archive-site-link');
+      while (siteLink.firstChild) {
+        siteLink.removeChild(siteLink.lastChild);
+      }
+      var url = sitesUrls[siteSelect.value];
+      if (url) {
+        var anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.textContent = "go to site";
+        siteLink.appendChild(anchor);
+      }
+    }
+
+    var siteSelect = document.getElementById('wordle-archive-populate-site');
+    siteSelect.addEventListener("change", performChange);
+    performChange();
+  });
+</script>
+{% endblock %}
+
 {% block content %}
 <h1>Populate a Puzzle</h1>
 
@@ -10,7 +39,7 @@
 <p>
   <label>
     Site:<br/>
-    <select name="site" required="required">
+    <select id="wordle-archive-populate-site" name="site" required="required">
       <optgroup label="Not yet solved today">
         {% for site in sites -%}
           {% if !solved_sites.contains(site.id) -%}
@@ -27,6 +56,7 @@
       </optgroup>
     </select>
   </label>
+  <span id="wordle-archive-site-link"></span>
 </p>
 
 <p>
