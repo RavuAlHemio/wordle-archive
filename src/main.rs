@@ -722,6 +722,14 @@ async fn run() -> i32 {
     CONFIG.set(RwLock::new(config))
         .expect("CONFIG already set");
 
+    // connect to the database once (to perform any necessary migrations)
+    {
+        if DbConnection::new().await.is_none() {
+            // error already output
+            return 1;
+        }
+    }
+
     // hey, listen!
     let make_service = make_service_fn(|_conn| async {
         Ok::<_, Infallible>(service_fn(handle_request))

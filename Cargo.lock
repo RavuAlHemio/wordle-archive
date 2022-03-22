@@ -1287,6 +1287,7 @@ name = "wordle-archive"
 version = "0.1.0"
 dependencies = [
  "askama",
+ "async-trait",
  "chrono",
  "clap",
  "env_logger",

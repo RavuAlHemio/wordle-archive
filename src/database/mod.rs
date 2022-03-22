@@ -1,5 +1,10 @@
-use std::collections::HashSet;
+mod migrations_r0001;
 
+
+use std::collections::HashSet;
+use std::fmt::Debug;
+
+use async_trait::async_trait;
 use chrono::NaiveDate;
 use log::error;
 use tokio_postgres::{self, NoTls};
@@ -41,6 +46,26 @@ impl DbConnection {
                 error!("database connection error: {}", e);
             }
         });
+
+        // run migrations
+        let current_migrations: [&(dyn DbMigration); 1] = [
+            &migrations_r0001::MigrationR0001ToR0002,
+        ];
+        for migration in current_migrations {
+            match migration.is_required(&client).await {
+                Ok(false) => continue,
+                Ok(true) => {
+                    if !migration.migrate(&client).await {
+                        // failure information has already been logged
+                        return None;
+                    }
+                },
+                Err(e) => {
+                    error!("failed to ascertain whether migration {:?} is necessary: {}", migration, e);
+                    return None;
+                },
+            };
+        }
 
         Some(Self {
             client
@@ -249,4 +274,10 @@ impl DbConnection {
             true
         }
     }
+}
+
+#[async_trait]
+pub(crate) trait DbMigration : Debug + Sync {
+    async fn is_required(&self, db_client: &tokio_postgres::Client) -> Result<bool, tokio_postgres::Error>;
+    async fn migrate(&self, db_client: &tokio_postgres::Client) -> bool;
 }
