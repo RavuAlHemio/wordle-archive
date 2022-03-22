@@ -1,9 +1,10 @@
 FROM archlinux:base-devel as build
 RUN pacman -Syu --noconfirm
-RUN pacman -S --needed --noconfirm cargo
+RUN pacman -S --needed --noconfirm cargo git python
 
 COPY ./ /opt/wordle-archive
 WORKDIR /opt/wordle-archive
+RUN python3 cicd/version_stamp.py
 RUN cargo build --release --all-targets
 RUN cargo test --release
 
