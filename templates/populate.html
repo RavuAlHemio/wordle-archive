@@ -12,18 +12,18 @@
     Site:<br/>
     <select name="site" required="required">
       <optgroup label="Not yet solved today">
-        {% for site in sites %}
-          {% if !solved_sites.contains(site.id) %}
+        {% for site in sites -%}
+          {% if !solved_sites.contains(site.id) -%}
             <option value="{{ site.id }}">{{ site.name|escape }}</option>
-          {% endif %}
-        {% endfor %}
+          {% endif -%}
+        {% endfor -%}
       </optgroup>
       <optgroup label="Already solved today">
-        {% for site in sites %}
-          {% if solved_sites.contains(site.id) %}
+        {% for site in sites -%}
+          {% if solved_sites.contains(site.id) -%}
             <option value="{{ site.id }}">{{ site.name|escape }}</option>
-          {% endif %}
-        {% endfor %}
+          {% endif -%}
+        {% endfor -%}
       </optgroup>
     </select>
   </label>
@@ -57,9 +57,9 @@
 <p>
   today&#8217;s puzzles:
   <a href="wordle/{{ today_string|urlencode|escape }}">public</a>
-  {% if let Some(tok) = token %}
+  {% if let Some(tok) = token -%}
     &middot;
     <a href="wordle/{{ today_string|urlencode|escape }}?token={{ tok|urlencode|escape }}">with token</a>
-  {% endif %}
+  {% endif -%}
 </p>
 {% endblock %}

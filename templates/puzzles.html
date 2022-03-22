@@ -10,29 +10,29 @@
 {% endif %}
 
 <p class="date-nav">
-  {% if let Some(date) = date_opt %}
-    {% if let Some(yesterday) = date.pred_opt() %}
+  {% if let Some(date) = date_opt -%}
+    {% if let Some(yesterday) = date.pred_opt() -%}
       <a href="{{ yesterday.format("%Y-%m-%d")|escape }}{% if let Some(tok) = token %}?token={{ tok|urlencode|escape }}{% endif %}" title="one day back">&#11013;&#65039;</a>
-    {% else %}
+    {% else -%}
       <span class="disabled-link">&#11013;&#65039;</span>
-    {% endif %}
-    {% if let Some(tomorrow) = date.succ_opt() %}
+    {% endif -%}
+    {% if let Some(tomorrow) = date.succ_opt() -%}
       <a href="{{ tomorrow.format("%Y-%m-%d")|escape }}{% if let Some(tok) = token %}?token={{ tok|urlencode|escape }}{% endif %}" title="one day forward">&#10145;&#65039;</a>
-    {% else %}
+    {% else -%}
       <span class="disabled-link">&#10145;&#65039;</span>
-    {% endif %}
-  {% endif %}
+    {% endif -%}
+  {% endif -%}
 
-  {% if allow_spoiling %}
-    {% if !spoil %}
+  {% if allow_spoiling -%}
+    {% if !spoil -%}
       <a href="?spoil=true{% if let Some(tok) = token %}&amp;token={{ tok|urlencode|escape }}{% endif %}" title="spoil the answers">&#128065;&#65039;</a>
-    {% else %}
+    {% else -%}
       <span class="disabled-link">&#128065;&#65039;</span>
-    {% endif %}
-  {% endif %}
+    {% endif -%}
+  {% endif -%}
 </p>
 
-{% for puzzle in puzzles %}
+{% for puzzle in puzzles -%}
 <h3>{{ puzzle.site.name|escape }}</h3>
 
 <p><a href="../puzzle/{{ puzzle.id }}">only this</a> &middot; <a href="{{ puzzle.site.url|escape }}">visit site</a></p>
@@ -41,8 +41,8 @@
 
 <div class="head">{{ puzzle.head|escape }}</div>
 
-{% if puzzle.site.variant == "geo" %}
-  {% for (guess, solution) in puzzle.guess_lines %}
+{% if puzzle.site.variant == "geo" -%}
+  {% for (guess, solution) in puzzle.guess_lines -%}
   <div class="field-row guess-row">
     {%- for g in guess.chars() -%}
       {%- if g == 'C' || g == 'M' || g == 'W' -%}
@@ -52,64 +52,64 @@
       {%- endif -%}
     {%- endfor -%}
 
-    {% if spoil %}
+    {% if spoil -%}
       <div class="guess-box">{{ solution|escape }}</div>
-    {% endif %}
+    {% endif -%}
   </div>
-  {% endfor %}
+  {% endfor -%}
 
-  {% if spoil && !puzzle.solved %}
+  {% if spoil && !puzzle.solved -%}
   <div class="field-row solution-row">
     <div class="guess-box">{{ puzzle.solution|escape }}</div>
   </div>
-  {% endif %}
+  {% endif -%}
 
-{% else if puzzle.site.variant == "audio" %}
+{% else if puzzle.site.variant == "audio" -%}
 
-  {% for (guess, solution) in puzzle.guess_lines %}
+  {% for (guess, solution) in puzzle.guess_lines -%}
   <div class="field-row guess-row">
     {%- for g in guess.chars() -%}
       <div class="field-box guess-{{ g|escape }}"></div>
     {%- endfor -%}
 
-    {% if spoil %}
+    {%- if spoil -%}
       <div class="guess-box">{{ solution|escape }}</div>
-    {% endif %}
+    {%- endif -%}
   </div>
-  {% endfor %}
+  {% endfor -%}
 
-  {% if spoil && !puzzle.solved %}
+  {% if spoil && !puzzle.solved -%}
   <div class="field-row solution-row">
     <div class="guess-box">{{ puzzle.solution|escape }}</div>
   </div>
-  {% endif %}
+  {% endif -%}
 
-{% else %}
+{% else -%}
 
 <div class="field">
-{% for (guess, solution) in puzzle.guess_lines %}
+{% for (guess, solution) in puzzle.guess_lines -%}
 <div class="field-row guess-row">
   {%- for (g, s) in guess.chars().zip(solution.chars()) -%}
   <div class="field-box guess-{{ g|escape }}">{% if spoil %}{{ s|escape }}{% endif %}</div>
   {%- endfor -%}
 </div>
-{% endfor %}
+{% endfor -%}
 
-{% if spoil && !puzzle.solved %}
+{% if spoil && !puzzle.solved -%}
 <div class="field-row solution-row">
   {%- for s in puzzle.solution.chars() -%}
   <div class="field-box solution">{{ s|escape }}</div>
   {%- endfor -%}
 </div>
-{% endif %}
+{% endif -%}
 
 </div>
-{% endif %}
+{% endif -%}
 
 <div class="tail">{{ puzzle.tail|escape }}</div>
 
 </section>
 
-{% endfor %}
+{% endfor -%}
 
 {% endblock %}
