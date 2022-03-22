@@ -24,7 +24,7 @@ use tokio::sync::RwLock;
 
 use crate::config::{CONFIG, CONFIG_PATH, load_config};
 use crate::database::{DbConnection, OptionResult};
-use crate::model::{Puzzle, PuzzleSite, SiteAndPuzzle};
+use crate::model::{Puzzle, PuzzleSite, SiteAndPuzzle, SiteStats};
 
 
 #[derive(Parser)]
@@ -88,6 +88,12 @@ struct PopulateTemplate {
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd, Template)]
 #[template(path = "populate-success.html")]
 struct PopulateSuccessTemplate;
+
+#[derive(Clone, Debug, PartialEq, Template)]
+#[template(path = "stats.html")]
+struct StatsTemplate {
+    pub sites_stats: Vec<SiteStats>,
+}
 
 
 static RESULT_BLOCK_RE: Lazy<Regex> = Lazy::new(|| Regex::new(concat!(
@@ -287,6 +293,8 @@ async fn handle_request(req: Request<Body>) -> Result<Response<Body>, Infallible
         handle_puzzle(req, &path_segs[1]).await
     } else if path_segs.len() > 0 && path_segs[0] == "populate" {
         handle_populate(req).await
+    } else if path_segs.len() == 1 && path_segs[0] == "stats" {
+        handle_stats(req).await
     } else {
         return_404()
     }
@@ -772,6 +780,23 @@ async fn run() -> i32 {
     } else {
         0
     }
+}
+
+async fn handle_stats(_req: Request<Body>) -> Result<Response<Body>, Infallible> {
+    let db_conn = match DbConnection::new().await {
+        Some(c) => c,
+        None => return return_500(), // error already logged
+    };
+
+    let sites_stats = match db_conn.get_stats().await {
+        Some(ss) => ss,
+        None => return return_500(), // error already logged
+    };
+
+    let template = StatsTemplate {
+        sites_stats,
+    };
+    render_template(&template, 200, HashMap::new())
 }
 
 

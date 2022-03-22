@@ -42,6 +42,15 @@ section.puzzle {
 .site-nerdle .field-box.guess-W { background-color: #161803; }
 .site-nerdle .field-box.guess-M { background-color: #820458; }
 .site-nerdle .field-box.guess-C { background-color: #398874; }
+.stats table th, .stats table td {
+  text-align: left;
+  padding-right: 0.4em;
+}
+.stats td.value { min-width: 4.5em; }
+.stats td.value.numeric { text-align: right; }
+.stats td.graph div { height: 1em; display: inline-block; }
+.stats td.graph div.goodness { background-color: #538d4e; }
+.stats td.graph div.badness { background-color: #b59f3b; }
 </style>
 {% block addhead %}
 {% endblock %}

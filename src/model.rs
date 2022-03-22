@@ -28,3 +28,20 @@ pub(crate) struct SiteAndPuzzle {
     pub site: PuzzleSite,
     pub puzzle: Puzzle,
 }
+
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct SiteStats {
+    pub site: Option<PuzzleSite>,
+    pub puzzles_won: i64,
+    pub puzzles_lost: i64,
+    pub average_attempts: f64,
+}
+impl SiteStats {
+    pub fn percent_won(&self) -> f64 {
+        if self.puzzles_won + self.puzzles_lost == 0 {
+            0.0
+        } else {
+            (self.puzzles_won as f64) * 100.0 / ((self.puzzles_won + self.puzzles_lost) as f64)
+        }
+    }
+}
