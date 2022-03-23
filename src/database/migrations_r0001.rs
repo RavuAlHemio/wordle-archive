@@ -389,3 +389,27 @@ impl DbMigration for MigrationR0004ToR0005 {
         }
     }
 }
+
+
+#[derive(Debug)]
+pub(crate) struct MigrationR0005ToR0006;
+#[async_trait]
+impl DbMigration for MigrationR0005ToR0006 {
+    async fn is_required(&self, db_client: &tokio_postgres::Client) -> Result<bool, tokio_postgres::Error> {
+        migration_utils::schema_older_than(db_client, 6).await
+    }
+
+    async fn migrate(&self, db_client: &tokio_postgres::Client) -> bool {
+        let migration_code = include_str!("../../db/migrations/r0005_to_r0006.pgsql");
+
+        // run the migration
+        match db_client.batch_execute(migration_code).await {
+            Ok(_) => true,
+            Err(e) => {
+                migration_utils::log_failure_error(self, &e);
+                migration_utils::log_manual_commands(migration_code);
+                false
+            },
+        }
+    }
+}

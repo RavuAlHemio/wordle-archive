@@ -56,7 +56,7 @@ CREATE TABLE wordle_archive.schema_version
 , CONSTRAINT pkey__schema_version PRIMARY KEY (schema_version)
 );
 
-INSERT INTO wordle_archive.schema_version (schema_version) VALUES (5);
+INSERT INTO wordle_archive.schema_version (schema_version) VALUES (6);
 
 CREATE VIEW wordle_archive.site_stats AS
     SELECT
@@ -79,6 +79,30 @@ CREATE VIEW wordle_archive.site_stats AS
             SELECT CAST(AVG(avr.attempts) AS double precision)
             FROM wordle_archive.puzzles avr
             WHERE avr.site_id = s.id
+        ) average_attempts
+    FROM wordle_archive.sites s
+;
+
+CREATE VIEW wordle_archive.variant_stats AS
+    SELECT DISTINCT
+        s.variant,
+        (
+            SELECT CAST(COUNT(*) AS bigint)
+            FROM wordle_archive.puzzles vic
+            INNER JOIN wordle_archive.sites vics ON vics.id = vic.site_id
+            WHERE vics.variant = s.variant AND vic.attempts IS NOT NULL
+        ) puzzles_won,
+        (
+            SELECT CAST(COUNT(*) AS bigint)
+            FROM wordle_archive.puzzles los
+            INNER JOIN wordle_archive.sites loss ON loss.id = los.site_id
+            WHERE loss.variant = s.variant AND los.attempts IS NULL
+        ) puzzles_lost,
+        (
+            SELECT CAST(AVG(avr.attempts) AS double precision)
+            FROM wordle_archive.puzzles avr
+            INNER JOIN wordle_archive.sites avrs ON avrs.id = avr.site_id
+            WHERE avrs.variant = s.variant
         ) average_attempts
     FROM wordle_archive.sites s
 ;

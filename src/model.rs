@@ -29,14 +29,21 @@ pub(crate) struct SiteAndPuzzle {
     pub puzzle: Puzzle,
 }
 
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub(crate) enum StatsSubject {
+    Global,
+    Variant(String),
+    Site{ id: i64, name: String, css_class: String },
+}
+
 #[derive(Clone, Debug, PartialEq)]
-pub(crate) struct SiteStats {
-    pub site: Option<PuzzleSite>,
+pub(crate) struct Stats {
+    pub subject: StatsSubject,
     pub puzzles_won: i64,
     pub puzzles_lost: i64,
     pub average_attempts: f64,
 }
-impl SiteStats {
+impl Stats {
     pub fn percent_won(&self) -> f64 {
         if self.puzzles_won + self.puzzles_lost == 0 {
             0.0

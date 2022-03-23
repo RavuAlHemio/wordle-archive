@@ -6,30 +6,46 @@
 <div class="{% if is_good %}badness{% else %}goodness{% endif %}" style="min-width:{{ "{:.2}em"|format(total - value) }}"></div>
 {%- endmacro %}
 
+{% macro site_classes(subject) -%}
+{%- match subject -%}
+{%- when StatsSubject::Global -%}global
+{%- when StatsSubject::Variant(variant_name) -%}variant-{{ variant_name|escape }}
+{%- when StatsSubject::Site{ id, name, css_class } -%}site-{{ css_class|escape }}
+{%- endmatch -%}
+{%- endmacro %}
+
+{% macro site_title(subject) -%}
+{%- match subject -%}
+{%- when StatsSubject::Global -%}Global
+{%- when StatsSubject::Variant(variant_name) -%}Variant &#8220;{{ variant_name|escape }}&#8221;
+{%- when StatsSubject::Site{ id, name, css_class } -%}{{ name|escape }}
+{%- endmatch -%}
+{%- endmacro %}
+
 {% block title %}Wordle Statistics{% endblock %}
 
 {% block content %}
 <h1>Wordle Statistics</h1>
 
-{% for site_stats in sites_stats -%}
-<section class="stats {% if let Some(site) = site_stats.site %}site-{{ site.css_class|escape }}{% else %}global{% endif %}">
-  <h2>{% if let Some(site) = site_stats.site %}{{ site.name|escape }}{% else %}Global{% endif %}</h2>
+{% for stat in stats -%}
+<section class="stats {% call site_classes(stat.subject) %}">
+  <h2>{% call site_title(stat.subject) %}</h2>
 
   <table>
     <tr class="total-games-played">
       <th>Games played</th>
-      <td class="numeric value">{{ site_stats.puzzles_won + site_stats.puzzles_lost }}</td>
+      <td class="numeric value">{{ stat.puzzles_won + stat.puzzles_lost }}</td>
       <td class="graph no-graph"></td>
     </tr>
     <tr class="win-rate">
       <th>Win rate</th>
-      <td class="numeric value">{{ "{:.2}%"|format(site_stats.percent_won()) }}</td>
-      <td class="graph">{% call goodness_badness(site_stats.percent_won()/20.0, true, 100.0/20.0) %}</td>
+      <td class="numeric value">{{ "{:.2}%"|format(stat.percent_won()) }}</td>
+      <td class="graph">{% call goodness_badness(stat.percent_won()/20.0, true, 100.0/20.0) %}</td>
     </tr>
     <tr class="attempts">
       <th><abbr title="average">Avg</abbr> attempts</th>
-      <td class="numeric value">{{ "{:.2}"|format(site_stats.average_attempts) }}</td>
-      <td class="graph">{% call goodness_badness(site_stats.average_attempts*100.0/(6.0*20.0), false, 100.0/20.0) %}</td>
+      <td class="numeric value">{{ "{:.2}"|format(stat.average_attempts) }}</td>
+      <td class="graph">{% call goodness_badness(stat.average_attempts*100.0/(6.0*20.0), false, 100.0/20.0) %}</td>
     </tr>
   </table>
 </section>

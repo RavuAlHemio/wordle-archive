@@ -11,7 +11,7 @@ use log::error;
 use tokio_postgres::{self, NoTls};
 
 use crate::config::CONFIG;
-use crate::model::{Puzzle, PuzzleSite, SiteAndPuzzle, SiteStats};
+use crate::model::{Puzzle, PuzzleSite, SiteAndPuzzle, Stats, StatsSubject};
 
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -49,11 +49,12 @@ impl DbConnection {
         });
 
         // run migrations
-        let current_migrations: [&(dyn DbMigration); 4] = [
+        let current_migrations: [&(dyn DbMigration); 5] = [
             &migrations_r0001::MigrationR0001ToR0002,
             &migrations_r0001::MigrationR0002ToR0003,
             &migrations_r0001::MigrationR0003ToR0004,
             &migrations_r0001::MigrationR0004ToR0005,
+            &migrations_r0001::MigrationR0005ToR0006,
         ];
         for migration in current_migrations {
             match migration.is_required(&client).await {
@@ -253,76 +254,122 @@ impl DbConnection {
         }
     }
 
-    pub async fn get_stats(&self) -> Option<Vec<SiteStats>> {
-        let mut site_stats = Vec::new();
+    pub async fn get_stats(&self) -> Option<Vec<Stats>> {
+        let mut all_stats = Vec::new();
 
-        let global_row_res = self.client.query_one(
-            "
-                SELECT
-                    puzzles_won, puzzles_lost, average_attempts
-                FROM
-                    wordle_archive.global_stats
-            ",
-            &[],
-        ).await;
-        let global_row = match global_row_res {
-            Ok(r) => r,
-            Err(e) => {
-                error!("failed to obtain global statistics: {}", e);
-                return None;
-            },
-        };
-
+        // global stats
         {
-            let puzzles_won = global_row.get(0);
-            let puzzles_lost = global_row.get(1);
-            let average_attempts = global_row.get(2);
-
-            let stats = SiteStats {
-                site: None,
-                puzzles_won,
-                puzzles_lost,
-                average_attempts,
+            let global_row_res = self.client.query_one(
+                "
+                    SELECT
+                        puzzles_won, puzzles_lost, average_attempts
+                    FROM
+                        wordle_archive.global_stats
+                ",
+                &[],
+            ).await;
+            let global_row = match global_row_res {
+                Ok(r) => r,
+                Err(e) => {
+                    error!("failed to obtain global statistics: {}", e);
+                    return None;
+                },
             };
-            site_stats.push(stats);
+
+            {
+                let puzzles_won = global_row.get(0);
+                let puzzles_lost = global_row.get(1);
+                let average_attempts = global_row.get(2);
+
+                let stats = Stats {
+                    subject: StatsSubject::Global,
+                    puzzles_won,
+                    puzzles_lost,
+                    average_attempts,
+                };
+                all_stats.push(stats);
+            }
         }
 
-        let rows_res = self.client.query(
-            "
-                SELECT
-                    site_id, site_name, site_url, site_css_class, variant,
-                    puzzles_won, puzzles_lost, average_attempts
-                FROM
-                    wordle_archive.site_stats
-                ORDER BY
-                    site_id
-            ",
-            &[],
-        ).await;
-        let rows = match rows_res {
-            Ok(rs) => rs,
-            Err(e) => {
-                error!("failed to obtain statistics: {}", e);
-                return None;
-            },
-        };
-
-        for row in rows {
-            let site = Self::row_to_site(&row);
-            let puzzles_won = row.get(5);
-            let puzzles_lost = row.get(6);
-            let average_attempts = row.get(7);
-
-            let stats = SiteStats {
-                site: Some(site),
-                puzzles_won,
-                puzzles_lost,
-                average_attempts,
+        // variant stats
+        {
+            let rows_res = self.client.query(
+                "
+                    SELECT
+                        variant,
+                        puzzles_won, puzzles_lost, average_attempts
+                    FROM
+                        wordle_archive.variant_stats
+                    ORDER BY
+                        variant
+                ",
+                &[],
+            ).await;
+            let rows = match rows_res {
+                Ok(rs) => rs,
+                Err(e) => {
+                    error!("failed to obtain statistics: {}", e);
+                    return None;
+                },
             };
-            site_stats.push(stats);
+
+            for row in rows {
+                let variant = row.get(0);
+                let puzzles_won = row.get(1);
+                let puzzles_lost = row.get(2);
+                let average_attempts = row.get(3);
+
+                let stats = Stats {
+                    subject: StatsSubject::Variant(variant),
+                    puzzles_won,
+                    puzzles_lost,
+                    average_attempts,
+                };
+                all_stats.push(stats);
+            }
         }
 
-        Some(site_stats)
+        // site stats
+        {
+            let rows_res = self.client.query(
+                "
+                    SELECT
+                        site_id, site_name, site_css_class,
+                        puzzles_won, puzzles_lost, average_attempts
+                    FROM
+                        wordle_archive.site_stats
+                    ORDER BY
+                        site_id
+                ",
+                &[],
+            ).await;
+            let rows = match rows_res {
+                Ok(rs) => rs,
+                Err(e) => {
+                    error!("failed to obtain statistics: {}", e);
+                    return None;
+                },
+            };
+
+            for row in rows {
+                let site_id = row.get(0);
+                let site_name = row.get(1);
+                let site_css_class = row.get(2);
+                let puzzles_won = row.get(3);
+                let puzzles_lost = row.get(4);
+                let average_attempts = row.get(5);
+
+                let stats = Stats {
+                    subject: StatsSubject::Site { id: site_id, name: site_name, css_class: site_css_class },
+                    puzzles_won,
+                    puzzles_lost,
+                    average_attempts,
+                };
+                all_stats.push(stats);
+            }
+        }
+
+        Some(all_stats)
     }
 
     pub async fn store_puzzle(&self, puzzle: &Puzzle) -> bool {

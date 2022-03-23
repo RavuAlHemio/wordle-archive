@@ -24,7 +24,7 @@ use tokio::sync::RwLock;
 
 use crate::config::{CONFIG, CONFIG_PATH, load_config};
 use crate::database::{DbConnection, OptionResult};
-use crate::model::{Puzzle, PuzzleSite, SiteAndPuzzle, SiteStats};
+use crate::model::{Puzzle, PuzzleSite, SiteAndPuzzle, Stats, StatsSubject};
 
 
 #[derive(Parser)]
@@ -92,7 +92,7 @@ struct PopulateSuccessTemplate;
 #[derive(Clone, Debug, PartialEq, Template)]
 #[template(path = "stats.html")]
 struct StatsTemplate {
-    pub sites_stats: Vec<SiteStats>,
+    pub stats: Vec<Stats>,
 }
 
 
@@ -788,13 +788,13 @@ async fn handle_stats(_req: Request<Body>) -> Result<Response<Body>, Infallible>
         None => return return_500(), // error already logged
     };
 
-    let sites_stats = match db_conn.get_stats().await {
-        Some(ss) => ss,
+    let stats = match db_conn.get_stats().await {
+        Some(s) => s,
         None => return return_500(), // error already logged
     };
 
     let template = StatsTemplate {
-        sites_stats,
+        stats,
     };
     render_template(&template, 200, HashMap::new())
 }
