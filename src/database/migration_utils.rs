@@ -9,13 +9,8 @@ async fn run_existence_query(db_client: &tokio_postgres::Client, query: &str, pa
     Ok(row_opt.is_some())
 }
 
-pub(crate) async fn schema_older_than(db_client: &tokio_postgres::Client, comparison_version: i64) -> Result<bool, tokio_postgres::Error> {
-    let row = db_client.query_one(
-        "SELECT schema_version FROM wordle_archive.schema_version",
-        &[],
-    ).await?;
-    let version: i64 = row.get(0);
-    Ok(version < comparison_version)
+pub(crate) fn schema_older_than(schema_version: Option<i64>, comparison_version: i64) -> Result<bool, tokio_postgres::Error> {
+    Ok(schema_version.map(|v| v < comparison_version).unwrap_or(true))
 }
 
 pub(crate) async fn store_schema_version(db_client: &tokio_postgres::Client, new_version: i64) -> Result<(), tokio_postgres::Error> {

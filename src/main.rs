@@ -16,7 +16,7 @@ use env_logger;
 use form_urlencoded;
 use hyper::{Body, Method, Request, Response};
 use hyper::service::{make_service_fn, service_fn};
-use log::{error, warn};
+use log::{error, info, warn};
 use once_cell::sync::Lazy;
 use percent_encoding::percent_decode_str;
 use regex::Regex;
@@ -765,6 +765,7 @@ async fn run() -> i32 {
             return 1;
         }
     }
+    info!("database schema is up to date");
 
     // hey, listen!
     let make_service = make_service_fn(|_conn| async {

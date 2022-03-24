@@ -9,7 +9,7 @@ use crate::database::migration_utils;
 pub(crate) struct MigrationR0001ToR0002;
 #[async_trait]
 impl DbMigration for MigrationR0001ToR0002 {
-    async fn is_required(&self, db_client: &tokio_postgres::Client) -> Result<bool, tokio_postgres::Error> {
+    async fn is_required(&self, db_client: &tokio_postgres::Client, _schema_version: Option<i64>) -> Result<bool, tokio_postgres::Error> {
         // check for existence of schema_version table
         let version_table_already_exists = migration_utils::table_exists(
             db_client, "wordle_archive", "schema_version",
@@ -37,8 +37,8 @@ impl DbMigration for MigrationR0001ToR0002 {
 pub(crate) struct MigrationR0002ToR0003;
 #[async_trait]
 impl DbMigration for MigrationR0002ToR0003 {
-    async fn is_required(&self, db_client: &tokio_postgres::Client) -> Result<bool, tokio_postgres::Error> {
-        migration_utils::schema_older_than(db_client, 3).await
+    async fn is_required(&self, _db_client: &tokio_postgres::Client, schema_version: Option<i64>) -> Result<bool, tokio_postgres::Error> {
+        migration_utils::schema_older_than(schema_version, 3)
     }
 
     async fn migrate(&self, db_client: &tokio_postgres::Client) -> bool {
@@ -176,8 +176,8 @@ impl DbMigration for MigrationR0002ToR0003 {
 pub(crate) struct MigrationR0003ToR0004;
 #[async_trait]
 impl DbMigration for MigrationR0003ToR0004 {
-    async fn is_required(&self, db_client: &tokio_postgres::Client) -> Result<bool, tokio_postgres::Error> {
-        migration_utils::schema_older_than(db_client, 4).await
+    async fn is_required(&self, _db_client: &tokio_postgres::Client, schema_version: Option<i64>) -> Result<bool, tokio_postgres::Error> {
+        migration_utils::schema_older_than(schema_version, 4)
     }
 
     async fn migrate(&self, db_client: &tokio_postgres::Client) -> bool {
@@ -371,8 +371,8 @@ impl DbMigration for MigrationR0003ToR0004 {
 pub(crate) struct MigrationR0004ToR0005;
 #[async_trait]
 impl DbMigration for MigrationR0004ToR0005 {
-    async fn is_required(&self, db_client: &tokio_postgres::Client) -> Result<bool, tokio_postgres::Error> {
-        migration_utils::schema_older_than(db_client, 5).await
+    async fn is_required(&self, _db_client: &tokio_postgres::Client, schema_version: Option<i64>) -> Result<bool, tokio_postgres::Error> {
+        migration_utils::schema_older_than(schema_version, 5)
     }
 
     async fn migrate(&self, db_client: &tokio_postgres::Client) -> bool {
@@ -395,8 +395,8 @@ impl DbMigration for MigrationR0004ToR0005 {
 pub(crate) struct MigrationR0005ToR0006;
 #[async_trait]
 impl DbMigration for MigrationR0005ToR0006 {
-    async fn is_required(&self, db_client: &tokio_postgres::Client) -> Result<bool, tokio_postgres::Error> {
-        migration_utils::schema_older_than(db_client, 6).await
+    async fn is_required(&self, _db_client: &tokio_postgres::Client, schema_version: Option<i64>) -> Result<bool, tokio_postgres::Error> {
+        migration_utils::schema_older_than(schema_version, 6)
     }
 
     async fn migrate(&self, db_client: &tokio_postgres::Client) -> bool {

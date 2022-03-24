@@ -48,6 +48,20 @@ impl DbConnection {
             }
         });
 
+        // pre-fetch current schema version
+        let mut current_schema_version = None;
+        {
+            let row_res = client.query_one(
+                "SELECT schema_version FROM wordle_archive.schema_version",
+                &[],
+            ).await;
+            if let Ok(row) = row_res {
+                let ver: i64 = row.get(0);
+                current_schema_version = Some(ver);
+            }
+            // fail silently
+        }
+
         // run migrations
         let current_migrations: [&(dyn DbMigration); 5] = [
             &migrations_r0001::MigrationR0001ToR0002,
@@ -57,7 +71,7 @@ impl DbConnection {
             &migrations_r0001::MigrationR0005ToR0006,
         ];
         for migration in current_migrations {
-            match migration.is_required(&client).await {
+            match migration.is_required(&client, current_schema_version).await {
                 Ok(false) => continue,
                 Ok(true) => {
                     if !migration.migrate(&client).await {
@@ -397,6 +411,6 @@ impl DbConnection {
 
 #[async_trait]
 pub(crate) trait DbMigration : Debug + Sync {
-    async fn is_required(&self, db_client: &tokio_postgres::Client) -> Result<bool, tokio_postgres::Error>;
+    async fn is_required(&self, db_client: &tokio_postgres::Client, current_schema_version: Option<i64>) -> Result<bool, tokio_postgres::Error>;
     async fn migrate(&self, db_client: &tokio_postgres::Client) -> bool;
 }
