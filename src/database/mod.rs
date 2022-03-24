@@ -219,7 +219,7 @@ impl DbConnection {
                 WHERE
                     puzzle_date = $1
                 ORDER BY
-                    site_id
+                    site_id, day_ordinal
             ",
             &[&date],
         ).await;
