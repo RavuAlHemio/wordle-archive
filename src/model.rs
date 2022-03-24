@@ -21,6 +21,7 @@ pub(crate) struct Puzzle {
     pub pattern: String,
     pub solution: String,
     pub attempts: Option<i64>,
+    pub raw_pattern: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]

@@ -43,6 +43,15 @@ pub(crate) fn jsstring<S: AsRef<str>>(string: S) -> askama::Result<String> {
 
 
 pub(crate) fn puzzle_string(puzzle_part: &PuzzlePart) -> askama::Result<String> {
+    if let Some(raw_guesses) = &puzzle_part.raw_guesses {
+        let mut ret = String::new();
+        ret.push_str(&puzzle_part.head);
+        ret.push_str(&raw_guesses);
+        ret.push_str(&puzzle_part.tail);
+        return Ok(ret);
+    }
+
+    // attempt to reconstruct
     let mut ret = String::new();
     ret.push_str(&puzzle_part.head);
 

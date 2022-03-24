@@ -1,4 +1,5 @@
 mod migrations_r0001;
+mod migrations_r0006;
 pub(crate) mod migration_utils;
 
 
@@ -63,12 +64,13 @@ impl DbConnection {
         }
 
         // run migrations
-        let current_migrations: [&(dyn DbMigration); 5] = [
+        let current_migrations: [&(dyn DbMigration); 6] = [
             &migrations_r0001::MigrationR0001ToR0002,
             &migrations_r0001::MigrationR0002ToR0003,
             &migrations_r0001::MigrationR0003ToR0004,
             &migrations_r0001::MigrationR0004ToR0005,
             &migrations_r0001::MigrationR0005ToR0006,
+            &migrations_r0006::MigrationR0006ToR0007,
         ];
         for migration in current_migrations {
             match migration.is_required(&client, current_schema_version).await {
@@ -190,6 +192,7 @@ impl DbConnection {
         let pattern = row.get(10);
         let solution = row.get(11);
         let attempts = row.get(12);
+        let raw_pattern = row.get(13);
 
         let puzzle = Puzzle {
             id,
@@ -201,6 +204,7 @@ impl DbConnection {
             pattern,
             solution,
             attempts,
+            raw_pattern,
         };
         SiteAndPuzzle {
             site,
@@ -213,7 +217,7 @@ impl DbConnection {
             "
                 SELECT
                     site_id, site_name, site_url, site_css_class, variant, puzzle_id, puzzle_date,
-                    day_ordinal, head, tail, pattern, solution, attempts
+                    day_ordinal, head, tail, pattern, solution, attempts, raw_pattern
                 FROM
                     wordle_archive.sites_and_puzzles
                 WHERE
@@ -245,13 +249,11 @@ impl DbConnection {
             "
                 SELECT
                     site_id, site_name, site_url, site_css_class, variant, puzzle_id, puzzle_date,
-                    day_ordinal, head, tail, pattern, solution, attempts
+                    day_ordinal, head, tail, pattern, solution, attempts, raw_pattern
                 FROM
                     wordle_archive.sites_and_puzzles
                 WHERE
                     puzzle_id = $1
-                ORDER BY
-                    site_id
             ",
             &[&id],
         ).await;
@@ -391,13 +393,13 @@ impl DbConnection {
             "
                 INSERT INTO
                     wordle_archive.puzzles
-                    (site_id, puzzle_date, day_ordinal, head, tail, pattern, solution, attempts)
+                    (site_id, puzzle_date, day_ordinal, head, tail, pattern, solution, attempts, raw_pattern)
                 VALUES
-                    ($1, $2, $3, $4, $5, $6, $7, $8)
+                    ($1, $2, $3, $4, $5, $6, $7, $8, $9)
             ",
             &[
                 &puzzle.site_id, &puzzle.date, &puzzle.day_ordinal, &puzzle.head, &puzzle.tail,
-                &puzzle.pattern, &puzzle.solution, &puzzle.attempts,
+                &puzzle.pattern, &puzzle.solution, &puzzle.attempts, &puzzle.raw_pattern,
             ],
         ).await;
         if let Err(e) = res {
