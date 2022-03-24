@@ -2,6 +2,39 @@
 
 {% block title %}Wordle Archive{% endblock %}
 
+{% block addhead %}
+<script type="text/javascript">
+  //<![CDATA[
+  document.addEventListener("DOMContentLoaded", function() {
+    var puzzles = [
+      {% for puzzle in puzzles -%}
+      {{ puzzle|puzzle_string|jsstring|safe }},
+      {% endfor -%}
+    ];
+    var linkboxes = document.querySelectorAll(".puzzle-links");
+    for (var i = 0; i < linkboxes.length; i++) {
+      var addMiddot = document.createTextNode(" \u00B7 ");
+      linkboxes[i].appendChild(addMiddot);
+
+      var copyLink = document.createElement("a");
+      copyLink.href = "javascript:void(0)";
+      copyLink.textContent = "copy";
+      (function (copyLink, i) {
+        copyLink.addEventListener("click", function () {
+          navigator.clipboard.writeText(puzzles[i]).then(function () {
+            copyLink.textContent = "copied!";
+          }, function () {
+            copyLink.textContent = "failed! :-(";
+          });
+        });
+      })(copyLink, i);
+      linkboxes[i].appendChild(copyLink);
+    }
+  });
+  //]]>
+</script>
+{% endblock %}
+
 {% block content %}
 <h1>Wordle Archive</h1>
 
@@ -35,7 +68,7 @@
 {% for puzzle in puzzles -%}
 <h3>{{ puzzle.site.name|escape }}</h3>
 
-<p><a href="../puzzle/{{ puzzle.id }}">only this</a> &middot; <a href="{{ puzzle.site.url|escape }}">visit site</a></p>
+<p class="puzzle-links"><a href="../puzzle/{{ puzzle.id }}">only this</a> &middot; <a href="{{ puzzle.site.url|escape }}">visit site</a></p>
 
 <section class="puzzle site-{{ puzzle.site.css_class|escape }}">
 

@@ -2,6 +2,8 @@ use std::fmt::Write;
 
 use askama;
 
+use crate::PuzzlePart;
+
 
 pub(crate) fn jsstring<S: AsRef<str>>(string: S) -> askama::Result<String> {
     let s = string.as_ref();
@@ -36,5 +38,38 @@ pub(crate) fn jsstring<S: AsRef<str>>(string: S) -> askama::Result<String> {
         }
     }
     ret.push('"');
+    Ok(ret)
+}
+
+
+pub(crate) fn puzzle_string(puzzle_part: &PuzzlePart) -> askama::Result<String> {
+    let mut ret = String::new();
+    ret.push_str(&puzzle_part.head);
+
+    let correct_square = '\u{1F7E9}';
+    let misplaced_square = if puzzle_part.site.css_class == "nerdle" { '\u{1F7EA}' } else { '\u{1F7E8}' };
+    let wrong_square = '\u{2B1C}'; // or \u{2B1B} in dark mode
+    for (i, (guess, _solution)) in puzzle_part.guess_lines.iter().enumerate() {
+        for row_char in guess.chars() {
+            if row_char == 'C' {
+                ret.push(correct_square);
+            } else if row_char == 'M' {
+                ret.push(misplaced_square);
+            } else if row_char == 'W' {
+                ret.push(wrong_square);
+            } else if puzzle_part.site.variant == "geo" {
+                // probably the arrow behind the squares
+                ret.push(row_char);
+                // append the emoji variation selector
+                ret.push('\u{FE0F}');
+            }
+        }
+
+        if puzzle_part.site.variant != "audio" && i < puzzle_part.guess_lines.len()-1 {
+            ret.push('\n');
+        }
+    }
+
+    ret.push_str(&puzzle_part.tail);
     Ok(ret)
 }
