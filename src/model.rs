@@ -43,6 +43,8 @@ pub(crate) struct Stats {
     pub puzzles_won: i64,
     pub puzzles_lost: i64,
     pub average_attempts: f64,
+    pub longest_streak: i64,
+    pub current_streak: Option<i64>,
 }
 impl Stats {
     pub fn percent_won(&self) -> f64 {

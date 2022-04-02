@@ -47,6 +47,18 @@
       <td class="numeric value">{{ "{:.2}"|format(stat.average_attempts) }}</td>
       <td class="graph">{% call goodness_badness(stat.average_attempts*100.0/(6.0*20.0), false, 100.0/20.0) %}</td>
     </tr>
+    <tr class="streak longest">
+      <th>Longest streak</th>
+      <td class="numeric value">{{ stat.longest_streak }}</td>
+      <td class="graph no-graph"></td>
+    </tr>
+    {% if let Some(current_streak) = stat.current_streak -%}
+      <tr class="streak current">
+        <th>Current streak</th>
+        <td class="numeric value">{{ current_streak }}</td>
+        <td class="graph no-graph"></td>
+      </tr>
+    {% endif -%}
   </table>
 </section>
 {% endfor -%}

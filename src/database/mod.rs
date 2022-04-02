@@ -64,13 +64,14 @@ impl DbConnection {
         }
 
         // run migrations
-        let current_migrations: [&(dyn DbMigration); 6] = [
+        let current_migrations: [&(dyn DbMigration); 7] = [
             &migrations_r0001::MigrationR0001ToR0002,
             &migrations_r0001::MigrationR0002ToR0003,
             &migrations_r0001::MigrationR0003ToR0004,
             &migrations_r0001::MigrationR0004ToR0005,
             &migrations_r0001::MigrationR0005ToR0006,
             &migrations_r0006::MigrationR0006ToR0007,
+            &migrations_r0006::MigrationR0007ToR0008,
         ];
         for migration in current_migrations {
             match migration.is_required(&client, current_schema_version).await {
@@ -278,7 +279,7 @@ impl DbConnection {
             let global_row_res = self.client.query_one(
                 "
                     SELECT
-                        puzzles_won, puzzles_lost, average_attempts
+                        puzzles_won, puzzles_lost, average_attempts, longest_streak
                     FROM
                         wordle_archive.global_stats
                 ",
@@ -296,12 +297,16 @@ impl DbConnection {
                 let puzzles_won = global_row.get(0);
                 let puzzles_lost = global_row.get(1);
                 let average_attempts = global_row.get(2);
+                let longest_streak = global_row.get(3);
+                let current_streak = None;
 
                 let stats = Stats {
                     subject: StatsSubject::Global,
                     puzzles_won,
                     puzzles_lost,
                     average_attempts,
+                    longest_streak,
+                    current_streak,
                 };
                 all_stats.push(stats);
             }
@@ -313,7 +318,7 @@ impl DbConnection {
                 "
                     SELECT
                         variant,
-                        puzzles_won, puzzles_lost, average_attempts
+                        puzzles_won, puzzles_lost, average_attempts, longest_streak
                     FROM
                         wordle_archive.variant_stats
                     ORDER BY
@@ -334,12 +339,16 @@ impl DbConnection {
                 let puzzles_won = row.get(1);
                 let puzzles_lost = row.get(2);
                 let average_attempts = row.get(3);
+                let longest_streak = row.get(4);
+                let current_streak = None;
 
                 let stats = Stats {
                     subject: StatsSubject::Variant(variant),
                     puzzles_won,
                     puzzles_lost,
                     average_attempts,
+                    longest_streak,
+                    current_streak,
                 };
                 all_stats.push(stats);
             }
@@ -351,7 +360,7 @@ impl DbConnection {
                 "
                     SELECT
                         site_id, site_name, site_css_class,
-                        puzzles_won, puzzles_lost, average_attempts
+                        puzzles_won, puzzles_lost, average_attempts, longest_streak, current_streak
                     FROM
                         wordle_archive.site_stats
                     ORDER BY
@@ -374,12 +383,17 @@ impl DbConnection {
                 let puzzles_won = row.get(3);
                 let puzzles_lost = row.get(4);
                 let average_attempts = row.get(5);
+                let longest_streak = row.get(6);
+                let current_streak_some = row.get(7);
+                let current_streak = Some(current_streak_some);
 
                 let stats = Stats {
                     subject: StatsSubject::Site { id: site_id, name: site_name, css_class: site_css_class },
                     puzzles_won,
                     puzzles_lost,
                     average_attempts,
+                    longest_streak,
+                    current_streak,
                 };
                 all_stats.push(stats);
             }
