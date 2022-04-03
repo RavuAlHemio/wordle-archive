@@ -64,7 +64,7 @@ impl DbConnection {
         }
 
         // run migrations
-        let current_migrations: [&(dyn DbMigration); 7] = [
+        let current_migrations: [&(dyn DbMigration); 8] = [
             &migrations_r0001::MigrationR0001ToR0002,
             &migrations_r0001::MigrationR0002ToR0003,
             &migrations_r0001::MigrationR0003ToR0004,
@@ -72,6 +72,7 @@ impl DbConnection {
             &migrations_r0001::MigrationR0005ToR0006,
             &migrations_r0006::MigrationR0006ToR0007,
             &migrations_r0006::MigrationR0007ToR0008,
+            &migrations_r0006::MigrationR0008ToR0009,
         ];
         for migration in current_migrations {
             match migration.is_required(&client, current_schema_version).await {
