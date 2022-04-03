@@ -19,6 +19,7 @@ use hyper::service::{make_service_fn, service_fn};
 use log::{error, info, warn};
 use once_cell::sync::Lazy;
 use percent_encoding::percent_decode_str;
+use rand::{Rng, thread_rng};
 use regex::Regex;
 use tokio::sync::RwLock;
 
@@ -59,6 +60,7 @@ struct PuzzlesTemplate {
     pub puzzles: Vec<PuzzlePart>,
     pub date_opt: Option<NaiveDate>,
     pub token: Option<String>,
+    pub stats_upwards_curve: bool,
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -400,6 +402,7 @@ async fn handle_wordle<S: AsRef<str>>(
     }
 
     let token = query_pairs.get("token").map(|t| t.clone().into_owned());
+    let stats_upwards_curve: bool = thread_rng().gen();
 
     let template = PuzzlesTemplate {
         allow_spoiling,
@@ -407,6 +410,7 @@ async fn handle_wordle<S: AsRef<str>>(
         puzzles,
         date_opt: Some(date),
         token,
+        stats_upwards_curve,
     };
     render_template(&template, 200, HashMap::new())
 }
@@ -448,6 +452,7 @@ async fn handle_puzzle<S: AsRef<str>>(
     }
 
     let token = query_pairs.get("token").map(|t| t.clone().into_owned());
+    let stats_upwards_curve: bool = thread_rng().gen();
 
     let template = PuzzlesTemplate {
         allow_spoiling,
@@ -455,6 +460,7 @@ async fn handle_puzzle<S: AsRef<str>>(
         puzzles: vec![puzzle],
         date_opt: None,
         token,
+        stats_upwards_curve,
     };
     render_template(&template, 200, HashMap::new())
 }
