@@ -9,6 +9,11 @@
     {{ site.id.to_string()|jsstring|safe }}: {{ site.url|jsstring|safe }}{% if !loop.last %},{% endif %}
     {% endfor -%}
   };
+  var sitesNotes = {
+    {% for site in sites -%}
+    {{ site.id.to_string()|jsstring|safe }}: {{ site.notes|jsstring|safe }}{% if !loop.last %},{% endif %}
+    {% endfor -%}
+  };
   document.addEventListener('DOMContentLoaded', function () {
     function performChange() {
       var siteLink = document.getElementById('wordle-archive-site-link');
@@ -22,6 +27,10 @@
         anchor.textContent = "go to site";
         siteLink.appendChild(anchor);
       }
+
+      var notesElement = document.getElementById('wordle-archive-site-notes');
+      var notes = sitesNotes[siteSelect.value];
+      notesElement.textContent = notes ? notes : '';
     }
 
     var siteSelect = document.getElementById('wordle-archive-populate-site');
@@ -58,6 +67,8 @@
   </label>
   <span id="wordle-archive-site-link"></span>
 </p>
+
+<p id="wordle-archive-site-notes"></p>
 
 <p>
   <label>

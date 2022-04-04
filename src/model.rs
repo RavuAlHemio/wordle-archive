@@ -8,6 +8,7 @@ pub(crate) struct PuzzleSite {
     pub url: String,
     pub css_class: String,
     pub variant: String,
+    pub notes: String,
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
