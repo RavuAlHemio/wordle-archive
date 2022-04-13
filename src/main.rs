@@ -614,17 +614,32 @@ async fn handle_populate_post(req: Request<Body>) -> Result<Response<Body>, Infa
                 }
             }
 
-            let last_result_line = result_string.split("\n").last().unwrap();
+            let result_lines: Vec<&str> = result_string.split("\n").collect();
+            let last_result_line = result_lines.last().unwrap();
             let victory =
                 last_result_line.contains('C')
                 && !last_result_line.contains('M')
                 && !last_result_line.contains('W')
             ;
+            let expected_line_count = if victory {
+                result_lines.len()
+            } else {
+                result_lines.len() + 1
+            };
             let attempts = if victory {
-                Some(result_string.bytes().filter(|b| *b == b'\n').count() + 1)
+                Some(expected_line_count)
             } else {
                 None
             };
+
+            let solution_line_count = raw_solution.split("\n").count();
+            if expected_line_count != solution_line_count {
+                return return_400(format!(
+                    "{} result lines, {} => expected {} solution lines but obtained {}",
+                    result_lines.len(), if victory { "victory" } else { "defeat" },
+                    expected_line_count, solution_line_count,
+                ));
+            }
 
             (&result[0..m.start()], m.as_str(), &result[m.end()..], result_string, raw_solution.trim(), attempts)
         } else {
