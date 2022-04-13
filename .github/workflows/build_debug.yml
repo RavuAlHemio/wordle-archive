@@ -9,6 +9,8 @@ jobs:
         run: pacman -Syu --noconfirm
       - name: install packages
         run: pacman -S --needed --noconfirm cargo git python
+      - name: trust repo directory
+        run: git config --global --add safe.directory /__w/wordle-archive/wordle-archive
       - name: check out repository code
         uses: actions/checkout@v2
       - name: add version stamp
