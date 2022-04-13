@@ -590,7 +590,7 @@ async fn handle_populate_post(req: Request<Body>) -> Result<Response<Body>, Infa
         None => return return_400("missing field \"result\""),
     };
     let raw_solution = match form_pairs.get("solution") {
-        Some(s) => s.replace("\r", "").to_owned(),
+        Some(s) => s.replace("\r", ""),
         None => return return_400("missing field \"solution\""),
     };
 
