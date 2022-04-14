@@ -1,8 +1,33 @@
+use std::cell::RefCell;
 use std::fmt::Write;
+use std::ops::Range;
 
 use askama;
 
 use crate::PuzzlePart;
+
+
+pub(crate) struct WrongSolutionManager {
+    base_guesses: usize,
+    current_index: RefCell<usize>,
+}
+impl WrongSolutionManager {
+    pub fn new(base_guesses: usize) -> Self {
+        Self {
+            base_guesses,
+            current_index: RefCell::new(base_guesses),
+        }
+    }
+
+    pub fn correct_indexes(&self) -> Range<usize> { 0..self.base_guesses }
+
+    pub fn advance(&self) -> usize {
+        let mut current_index_mut = self.current_index.borrow_mut();
+        let ret = *current_index_mut;
+        *current_index_mut += 1;
+        ret
+    }
+}
 
 
 pub(crate) fn jsstring<S: AsRef<str>>(string: S) -> askama::Result<String> {
@@ -81,4 +106,22 @@ pub(crate) fn puzzle_string(puzzle_part: &PuzzlePart) -> askama::Result<String> 
 
     ret.push_str(&puzzle_part.tail);
     Ok(ret)
+}
+
+pub(crate) fn get_index<'t, 'i, T>(slice: &'t [T], index: &'i usize) -> askama::Result<Option<&'t T>> {
+    Ok(slice.get(*index))
+}
+
+pub(crate) fn make_wrong_solution_manager(puzzle: &PuzzlePart) -> askama::Result<WrongSolutionManager> {
+    // calculate how many wrong guesses we have
+    let wrong_guesses = puzzle.pattern_lines
+        .iter()
+        .flat_map(|ln| ln.split(' '))
+        .filter(|chunk| *chunk == "XX")
+        .count();
+
+    // the number of base guesses is the total number of solution lines minus the number of wrong guesses
+    let base_guesses = puzzle.solution_lines.len() - wrong_guesses;
+
+    Ok(WrongSolutionManager::new(base_guesses))
 }

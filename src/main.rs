@@ -70,6 +70,8 @@ struct PuzzlePart {
     pub day_ordinal: i64,
     pub head: String,
     pub tail: String,
+    pub pattern_lines: Vec<String>,
+    pub solution_lines: Vec<String>,
     pub guess_lines: Vec<(String, String)>,
     pub attempts: Option<i64>,
     pub solution: String,
@@ -123,6 +125,26 @@ static AUDIO_RESULT_BLOCK_RE: Lazy<Regex> = Lazy::new(|| Regex::new(concat!(
     // squares as above, but only one row
     // emoji variant selector optionally after each square
     "(?:[\u{2B1B}\u{2B1C}\u{1F7E5}-\u{1F7EB}]\u{FE0F}?)+",
+)).unwrap());
+
+static WORDLE32_RESULT_BLOCK_RE: Lazy<Regex> = Lazy::new(|| Regex::new(concat!(
+    // on success: twice: digit (U+0030 to U+0039), emoji variant selector (U+FE0F), enclosing keycap (U+20E3)
+    // on failure: two red squares (U+1F7E5)
+    // above chunk four times, separated by spaces (U+0020)
+    // above chunk multiple (generally eight) times, separated by newlines (optionally U+000D, then U+000A)
+    "(?:[0-9]\u{FE0F}\u{20E3}[0-9]\u{FE0F}\u{20E3}|\u{1F7E5}\u{1F7E5})",
+    "(?:",
+        "[ ]",
+        "(?:[0-9]\u{FE0F}\u{20E3}[0-9]\u{FE0F}\u{20E3}|\u{1F7E5}\u{1F7E5})",
+    "){3}",
+    "(?:",
+        "\r?\n",
+        "(?:[0-9]\u{FE0F}\u{20E3}[0-9]\u{FE0F}\u{20E3}|\u{1F7E5}\u{1F7E5})",
+        "(?:",
+            "[ ]",
+            "(?:[0-9]\u{FE0F}\u{20E3}[0-9]\u{FE0F}\u{20E3}|\u{1F7E5}\u{1F7E5})",
+        "){3}",
+    ")*",
 )).unwrap());
 
 
@@ -304,12 +326,15 @@ async fn handle_request(req: Request<Body>) -> Result<Response<Body>, Infallible
 }
 
 fn db_puzzle_to_puzzle_part(db_puzzle: &SiteAndPuzzle) -> PuzzlePart {
-    let pattern_lines: Vec<&str> = db_puzzle.puzzle.pattern.split("\n").collect();
-    let solution_lines: Vec<&str> = db_puzzle.puzzle.solution.split("\n").collect();
+    let pattern_lines: Vec<String> = db_puzzle.puzzle.pattern
+        .split("\n").map(|l| l.to_owned()).collect();
+    let solution_lines: Vec<String> = db_puzzle.puzzle.solution
+        .split("\n").map(|l| l.to_owned()).collect();
 
     let guess_lines = pattern_lines.iter().zip(solution_lines.iter())
-        .map(|(&p, &s)| (p.to_owned(), s.to_owned()))
+        .map(|(p, s)| (p.to_owned(), s.to_owned()))
         .collect();
+    let solution = solution_lines.last().unwrap().clone();
 
     PuzzlePart {
         site: db_puzzle.site.clone(),
@@ -317,9 +342,11 @@ fn db_puzzle_to_puzzle_part(db_puzzle: &SiteAndPuzzle) -> PuzzlePart {
         day_ordinal: db_puzzle.puzzle.day_ordinal,
         head: db_puzzle.puzzle.head.clone(),
         tail: db_puzzle.puzzle.tail.clone(),
+        pattern_lines,
+        solution_lines,
         guess_lines,
         attempts: db_puzzle.puzzle.attempts,
-        solution: (*solution_lines.last().unwrap()).to_owned(),
+        solution,
         raw_guesses: db_puzzle.puzzle.raw_pattern.clone(),
     }
 }
@@ -690,6 +717,45 @@ async fn handle_populate_post(req: Request<Body>) -> Result<Response<Body>, Infa
             };
 
             (&result[0..m.start()], m.as_str(), &result[m.end()..], newline_result_string, raw_solution.as_str(), attempts)
+        } else {
+            return return_400("failed to decode guesses");
+        }
+    } else if site.variant == "wordle32" {
+        let solution = raw_solution.trim();
+        let solution_lines: Vec<&str> = solution.split('\n').collect();
+        if let Some(m) = WORDLE32_RESULT_BLOCK_RE.find(&result) {
+            let mut result_string = String::new();
+            for line in m.as_str().split('\n') {
+                if result_string.len() > 0 {
+                    result_string.push('\n');
+                }
+
+                for c in line.chars() {
+                    if c >= '0' && c <= '9' {
+                        result_string.push(c);
+                    } else if c == '\u{1F7E5}' { // red square
+                        result_string.push('X');
+                    } else if c == ' ' || c == '\n' {
+                        result_string.push(c);
+                    } else if c == '\u{FE0F}' || c == '\u{20E3}' {
+                        // ignore emoji variant selectors and enclosing keycaps
+                    } else {
+                        return return_400(format!(
+                            "unknown result character {} (U+{:04X})",
+                            c, u32::from(c),
+                        ));
+                    }
+                }
+            }
+
+            let defeat_count = result_string.chars().filter(|c| *c == 'X').count() / 2;
+            let attempts = if defeat_count == 0 {
+                Some(solution_lines.len())
+            } else {
+                None
+            };
+
+            (&result[0..m.start()], m.as_str(), &result[m.end()..], result_string, solution, attempts)
         } else {
             return return_400("failed to decode guesses");
         }

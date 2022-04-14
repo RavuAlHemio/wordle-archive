@@ -119,6 +119,52 @@
   </div>
   {% endif -%}
 
+{% else if puzzle.site.variant == "wordle32" -%}
+
+{% let wrong_solution_manager = puzzle|make_wrong_solution_manager -%}
+
+<div class="field">
+  {% for pattern_line in puzzle.pattern_lines -%}
+    <div class="field-row guess-row">
+      {% for pattern_chunk in pattern_line.split(" ") -%}
+        {% if pattern_chunk == "XX" -%}
+          <div class="field-box guess-W">XX</div>
+        {% else -%}
+          <div class="field-box guess-T">{{ pattern_chunk }}</div>
+        {% endif -%}
+      {% endfor -%}
+    </div>
+    {% if spoil -%}
+      <div class="solution-row">
+        {% for pattern_chunk in pattern_line.split(" ") -%}
+          {% if pattern_chunk != "XX" -%}
+            {% if let Ok(index) = usize::from_str_radix(pattern_chunk, 10) -%}
+              {% if let Some(solution) = puzzle.solution_lines|get_index(index - 1) -%}
+                <div class="solution-box correct">{{ solution|escape }}</div>
+              {% endif -%}
+            {% endif -%}
+          {% else -%}
+            {% let this_index = wrong_solution_manager.advance() -%}
+            {% if let Some(solution) = puzzle.solution_lines|get_index(this_index) -%}
+              <div class="solution-box wrong">{{ solution|escape }}</div>
+            {% endif -%}
+          {% endif -%}
+        {% endfor -%}
+      </div>
+    {% endif -%}
+  {% endfor -%}
+
+  {% if spoil -%}
+    <div class="all-guess-row">
+      {% for index in wrong_solution_manager.correct_indexes() -%}
+        {% if let Some(guess) = puzzle.solution_lines|get_index(index) -%}
+          <div class="solution-box">{{ guess|escape }}</div>
+        {% endif -%}
+      {% endfor -%}
+    </div>
+  {% endif -%}
+</div>
+
 {% else -%}
 
 <div class="field">
