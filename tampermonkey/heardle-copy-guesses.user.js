@@ -28,7 +28,12 @@
                 .some(function (g) { return g.isCorrect });
             if (guessList.length === 6 && !victory) {
                 // defeated; append correct solution
-                guessList.push(todaysStats.correctAnswer);
+                if (todaysStats.correctAnswer) {
+                    guessList.push(todaysStats.correctAnswer);
+                }
+                else {
+                    guessList.push(document.getElementsByTagName("a")[0].title.replace("Listen to ", "").replace(" on SoundCloud", "") );
+                }
             }
             var guesses = guessList.join("\n");
 
