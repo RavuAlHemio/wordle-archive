@@ -28,7 +28,21 @@
                 .some(function (g) { return g.isCorrect });
             if (guessList.length === 6 && !victory) {
                 // defeated; append correct solution
-                guessList.push(todaysStats.correctAnswer);
+                if (todaysStats.correctAnswer !== undefined) {
+                    guessList.push(todaysStats.correctAnswer);
+                } else {
+                    // missing from localStorage; extract from SoundCloud link
+                    var titleRegex = /^Listen to (.+) on SoundCloud$/;
+                    var links = document.getElementsByTagName("a");
+                    for (var i = 0; i < links.length; i++) {
+                        var matches = titleRegex.exec(links[i].title);
+                        if (matches === null) {
+                            continue;
+                        }
+                        guessList.push(matches[1]);
+                        break;
+                    }
+                }
             }
             var guesses = guessList.join("\n");
 
