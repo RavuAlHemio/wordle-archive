@@ -70,15 +70,19 @@ struct PuzzlePart {
     pub day_ordinal: i64,
     pub head: String,
     pub tail: String,
+    pub sub_puzzles: Vec<SubPuzzle>,
+    pub raw_guesses: Option<String>,
+    pub attempts: Option<i64>,
+}
+
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+struct SubPuzzle {
     pub pattern_lines: Vec<String>,
     pub solution_lines: Vec<String>,
     pub guess_lines: Vec<(String, String)>,
-    pub attempts: Option<i64>,
     pub solution: String,
-    pub raw_guesses: Option<String>,
-}
-impl PuzzlePart {
-    #[inline] pub fn victory(&self) -> bool { self.attempts.is_some() }
+    pub victory: bool,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Template)]
@@ -98,6 +102,45 @@ struct PopulateSuccessTemplate;
 #[template(path = "stats.html")]
 struct StatsTemplate {
     pub stats: Vec<Stats>,
+}
+
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+struct PuzzleData<'h, 'r, 't, 'p, 's> {
+    pub head: Cow<'h, str>,
+    pub raw_pattern: Cow<'r, str>,
+    pub tail: Cow<'t, str>,
+    pub pattern: Cow<'p, str>,
+    pub solution: Cow<'s, str>,
+    pub attempts: Option<usize>,
+    pub expected_solution_line_count: Option<usize>,
+}
+impl<'h, 'r, 't, 'p, 's> PuzzleData<'h, 'r, 't, 'p, 's> {
+    pub fn new<
+        H: Into<Cow<'h, str>>,
+        R: Into<Cow<'r, str>>,
+        T: Into<Cow<'t, str>>,
+        P: Into<Cow<'p, str>>,
+        S: Into<Cow<'s, str>>,
+    >(
+        head: H,
+        raw_pattern: R,
+        tail: T,
+        pattern: P,
+        solution: S,
+        attempts: Option<usize>,
+        expected_solution_line_count: Option<usize>,
+    ) -> Self {
+        Self {
+            head: head.into(),
+            raw_pattern: raw_pattern.into(),
+            tail: tail.into(),
+            pattern: pattern.into(),
+            solution: solution.into(),
+            attempts,
+            expected_solution_line_count,
+        }
+    }
 }
 
 
@@ -326,15 +369,30 @@ async fn handle_request(req: Request<Body>) -> Result<Response<Body>, Infallible
 }
 
 fn db_puzzle_to_puzzle_part(db_puzzle: &SiteAndPuzzle) -> PuzzlePart {
-    let pattern_lines: Vec<String> = db_puzzle.puzzle.pattern
-        .split("\n").map(|l| l.to_owned()).collect();
+    let sub_puzzle_patterns: Vec<&str> = db_puzzle.puzzle.pattern
+        .split("\n\n").collect();
     let solution_lines: Vec<String> = db_puzzle.puzzle.solution
         .split("\n").map(|l| l.to_owned()).collect();
 
-    let guess_lines = pattern_lines.iter().zip(solution_lines.iter())
-        .map(|(p, s)| (p.to_owned(), s.to_owned()))
-        .collect();
-    let solution = solution_lines.last().unwrap().clone();
+    let mut sub_puzzles = Vec::with_capacity(sub_puzzle_patterns.len());
+    for (i, pattern) in sub_puzzle_patterns.iter().enumerate() {
+        let pattern_lines: Vec<String> = pattern
+            .split("\n").map(|l| l.to_owned()).collect();
+        let guess_lines = pattern_lines.iter().zip(solution_lines.iter())
+            .map(|(p, s)| (p.to_owned(), s.to_owned()))
+            .collect();
+        let solution = solution_lines.get(solution_lines.len() - sub_puzzle_patterns.len() + i)
+            .unwrap().clone();
+        let victory = pattern_lines.iter().any(|ln| ln.chars().all(|c| c != 'M' && c != 'W'));
+
+        sub_puzzles.push(SubPuzzle {
+            pattern_lines,
+            solution_lines: solution_lines.clone(),
+            guess_lines,
+            solution,
+            victory,
+        });
+    }
 
     PuzzlePart {
         site: db_puzzle.site.clone(),
@@ -342,11 +400,8 @@ fn db_puzzle_to_puzzle_part(db_puzzle: &SiteAndPuzzle) -> PuzzlePart {
         day_ordinal: db_puzzle.puzzle.day_ordinal,
         head: db_puzzle.puzzle.head.clone(),
         tail: db_puzzle.puzzle.tail.clone(),
-        pattern_lines,
-        solution_lines,
-        guess_lines,
+        sub_puzzles,
         attempts: db_puzzle.puzzle.attempts,
-        solution,
         raw_guesses: db_puzzle.puzzle.raw_pattern.clone(),
     }
 }
@@ -621,7 +676,7 @@ async fn handle_populate_post(req: Request<Body>) -> Result<Response<Body>, Infa
         None => return return_400("missing field \"solution\""),
     };
 
-    let (head, raw_pattern, tail, pattern, solution, attempts) = if site.variant == "geo" {
+    let puzzle_data = if site.variant == "geo" {
         if let Some(m) = GEO_RESULT_BLOCK_RE.find(&result) {
             let mut result_string = String::new();
             for line in m.as_str().split("\n") {
@@ -668,7 +723,15 @@ async fn handle_populate_post(req: Request<Body>) -> Result<Response<Body>, Infa
                 ));
             }
 
-            (&result[0..m.start()], m.as_str(), &result[m.end()..], result_string, raw_solution.trim(), attempts)
+            PuzzleData::new(
+                &result[0..m.start()],
+                m.as_str(),
+                &result[m.end()..],
+                result_string,
+                raw_solution.trim(),
+                attempts,
+                Some(expected_line_count),
+            )
         } else {
             return return_400("failed to decode guesses");
         }
@@ -716,7 +779,15 @@ async fn handle_populate_post(req: Request<Body>) -> Result<Response<Body>, Infa
                 None
             };
 
-            (&result[0..m.start()], m.as_str(), &result[m.end()..], newline_result_string, raw_solution.as_str(), attempts)
+            PuzzleData::new(
+                &result[0..m.start()],
+                m.as_str(),
+                &result[m.end()..],
+                newline_result_string,
+                raw_solution.as_str(),
+                attempts,
+                Some(expected_line_count),
+            )
         } else {
             return return_400("failed to decode guesses");
         }
@@ -755,7 +826,15 @@ async fn handle_populate_post(req: Request<Body>) -> Result<Response<Body>, Infa
                 None
             };
 
-            (&result[0..m.start()], m.as_str(), &result[m.end()..], result_string, solution, attempts)
+            PuzzleData::new(
+                &result[0..m.start()],
+                m.as_str(),
+                &result[m.end()..],
+                result_string,
+                solution,
+                attempts,
+                None,
+            )
         } else {
             return return_400("failed to decode guesses");
         }
@@ -763,7 +842,9 @@ async fn handle_populate_post(req: Request<Body>) -> Result<Response<Body>, Infa
         // verify solution
         let solution = raw_solution.trim();
         let solution_lines: Vec<&str> = solution.split('\n').collect();
-        if let Some(m) = RESULT_BLOCK_RE.find(&result) {
+
+        let mut puzzles: Vec<PuzzleData> = Vec::new();
+        for m in RESULT_BLOCK_RE.find_iter(&result) {
             let mut result_string = String::new();
             for line in m.as_str().split('\n') {
                 if result_string.len() > 0 {
@@ -784,25 +865,82 @@ async fn handle_populate_post(req: Request<Body>) -> Result<Response<Body>, Infa
             let expected_line_count = if let Some(victory_index) = victory_index_opt {
                 victory_index + 1
             } else {
-                result_string.split('\n').count() + 1
+                result_string.split('\n').count()
+                // +1 is added further down (adding number of lost puzzles)
             };
-
-            if expected_line_count != solution_lines.len() {
-                return return_400(format!(
-                    "calculated {} result lines, obtained {} solution lines",
-                    expected_line_count, solution_lines.len(),
-                ));
-            }
-
             let attempts = victory_index_opt.map(|vi| vi + 1);
 
-            (&result[0..m.start()], m.as_str(), &result[m.end()..], result_string, solution, attempts)
-        } else {
+            puzzles.push(PuzzleData::new(
+                &result[0..m.start()],
+                m.as_str(),
+                &result[m.end()..],
+                result_string,
+                solution,
+                attempts,
+                Some(expected_line_count),
+            ));
+        }
+
+        if puzzles.len() == 0 {
             return return_400("failed to decode guesses");
         }
+
+        let max_expected_line_count = puzzles.iter()
+            .map(|p| p.expected_solution_line_count.unwrap())
+            .max().expect("no puzzles?!");
+        let expected_line_count = if puzzles.iter().all(|p| p.attempts.is_some()) {
+            // all puzzles won
+            // => expected line count is the maximum of each subpuzzle
+            max_expected_line_count
+        } else {
+            // some puzzles lost
+            // => expected line count is the maximum of each subpuzzle
+            // + 1 for each lost subpuzzle
+            let lost_count = puzzles.iter()
+                .filter(|p| p.attempts.is_none())
+                .count();
+            max_expected_line_count + lost_count
+        };
+
+        if expected_line_count != solution_lines.len() {
+            return return_400(format!(
+                "expected {}, obtained {} solution lines",
+                expected_line_count, solution_lines.len(),
+            ));
+        }
+
+        let first_puzzle = &puzzles[0];
+        let last_puzzle = puzzles.last().unwrap();
+
+        let raw_patterns: Vec<Cow<str>> = puzzles.iter().map(|p| p.raw_pattern.clone()).collect();
+        let raw_pattern = raw_patterns.join("\n\n");
+
+        let patterns: Vec<Cow<str>> = puzzles.iter().map(|p| p.pattern.clone()).collect();
+        let pattern = patterns.join("\n\n");
+
+        let mut attempts = Some(0);
+        for puzzle in &puzzles {
+            if let Some(a) = puzzle.attempts {
+                attempts = Some(attempts.unwrap().max(a));
+            } else {
+                // one of the partial puzzles failed = whole puzzle failed
+                attempts = None;
+                break;
+            }
+        }
+
+        PuzzleData::new(
+            first_puzzle.head.clone(),
+            raw_pattern,
+            last_puzzle.tail.clone(),
+            pattern,
+            first_puzzle.solution.clone(),
+            attempts,
+            Some(expected_line_count),
+        )
     };
 
-    let attempts_i64 = attempts
+    let attempts_i64 = puzzle_data.attempts
         .map(|a| a.try_into().expect("failed to convert attempt count to i64"));
 
     let puzzle = Puzzle {
@@ -810,12 +948,12 @@ async fn handle_populate_post(req: Request<Body>) -> Result<Response<Body>, Infa
         site_id,
         date: Local::now().date().naive_local(),
         day_ordinal,
-        head: head.to_owned(),
-        tail: tail.to_owned(),
-        pattern,
-        solution: solution.to_string(),
+        head: puzzle_data.head.into_owned(),
+        tail: puzzle_data.tail.into_owned(),
+        pattern: puzzle_data.pattern.into_owned(),
+        solution: puzzle_data.solution.into_owned(),
         attempts: attempts_i64,
-        raw_pattern: Some(raw_pattern.to_owned()),
+        raw_pattern: Some(puzzle_data.raw_pattern.into_owned()),
     };
     if !db_conn.store_puzzle(&puzzle).await {
         return_500()

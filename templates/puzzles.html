@@ -76,116 +76,120 @@
 
 <div class="head">{{ puzzle.head|escape }}</div>
 
-{% if puzzle.site.variant == "geo" -%}
-  {% for (guess, solution) in puzzle.guess_lines -%}
-  <div class="field-row guess-row">
-    {%- for g in guess.chars() -%}
-      {%- if g == 'C' || g == 'M' || g == 'W' -%}
-        <div class="field-box guess-{{ g|escape }}"></div>
-      {%- else -%}
-        <div class="arrow-box">{{ g|escape }}&#65039;</div>
-      {%- endif -%}
-    {%- endfor -%}
+{% for sub_puzzle in puzzle.sub_puzzles -%}
+  <div class="sub-puzzle">
+    {% if puzzle.site.variant == "geo" -%}
+      {% for (guess, solution) in sub_puzzle.guess_lines -%}
+      <div class="field-row guess-row">
+        {%- for g in guess.chars() -%}
+          {%- if g == 'C' || g == 'M' || g == 'W' -%}
+            <div class="field-box guess-{{ g|escape }}"></div>
+          {%- else -%}
+            <div class="arrow-box">{{ g|escape }}&#65039;</div>
+          {%- endif -%}
+        {%- endfor -%}
 
-    {% if spoil -%}
-      <div class="guess-box">{{ solution|escape }}</div>
-    {% endif -%}
-  </div>
-  {% endfor -%}
-
-  {% if spoil && !puzzle.victory() -%}
-  <div class="field-row solution-row">
-    <div class="guess-box">{{ puzzle.solution|escape }}</div>
-  </div>
-  {% endif -%}
-
-{% else if puzzle.site.variant == "audio" -%}
-
-  {% for (guess, solution) in puzzle.guess_lines -%}
-  <div class="field-row guess-row">
-    {%- for g in guess.chars() -%}
-      <div class="field-box guess-{{ g|escape }}"></div>
-    {%- endfor -%}
-
-    {%- if spoil -%}
-      <div class="guess-box">{{ solution|escape }}</div>
-    {%- endif -%}
-  </div>
-  {% endfor -%}
-
-  {% if spoil && !puzzle.victory() -%}
-  <div class="field-row solution-row">
-    <div class="guess-box">{{ puzzle.solution|escape }}</div>
-  </div>
-  {% endif -%}
-
-{% else if puzzle.site.variant == "wordle32" -%}
-
-{% let wrong_solution_manager = puzzle|make_wrong_solution_manager -%}
-
-<div class="field">
-  {% for pattern_line in puzzle.pattern_lines -%}
-    <div class="field-row guess-row">
-      {% for pattern_chunk in pattern_line.split(" ") -%}
-        {% if pattern_chunk == "XX" -%}
-          <div class="field-box guess-W">XX</div>
-        {% else -%}
-          <div class="field-box guess-T">{{ pattern_chunk }}</div>
+        {% if spoil -%}
+          <div class="guess-box">{{ solution|escape }}</div>
         {% endif -%}
+      </div>
       {% endfor -%}
-    </div>
-    {% if spoil -%}
-      <div class="solution-row">
-        {% for pattern_chunk in pattern_line.split(" ") -%}
-          {% if pattern_chunk != "XX" -%}
-            {% if let Ok(index) = usize::from_str_radix(pattern_chunk, 10) -%}
-              {% if let Some(solution) = puzzle.solution_lines|get_index(index - 1) -%}
-                <div class="solution-box correct">{{ solution|escape }}</div>
+
+      {% if spoil && !sub_puzzle.victory -%}
+      <div class="field-row solution-row">
+        <div class="guess-box">{{ sub_puzzle.solution|escape }}</div>
+      </div>
+      {% endif -%}
+
+    {% else if puzzle.site.variant == "audio" -%}
+
+      {% for (guess, solution) in sub_puzzle.guess_lines -%}
+      <div class="field-row guess-row">
+        {%- for g in guess.chars() -%}
+          <div class="field-box guess-{{ g|escape }}"></div>
+        {%- endfor -%}
+
+        {%- if spoil -%}
+          <div class="guess-box">{{ solution|escape }}</div>
+        {%- endif -%}
+      </div>
+      {% endfor -%}
+
+      {% if spoil && !sub_puzzle.victory -%}
+      <div class="field-row solution-row">
+        <div class="guess-box">{{ sub_puzzle.solution|escape }}</div>
+      </div>
+      {% endif -%}
+
+    {% else if puzzle.site.variant == "wordle32" -%}
+
+      {% let wrong_solution_manager = sub_puzzle|make_wrong_solution_manager -%}
+
+      <div class="field">
+        {% for pattern_line in sub_puzzle.pattern_lines -%}
+          <div class="field-row guess-row">
+            {% for pattern_chunk in pattern_line.split(" ") -%}
+              {% if pattern_chunk == "XX" -%}
+                <div class="field-box guess-W">XX</div>
+              {% else -%}
+                <div class="field-box guess-T">{{ pattern_chunk }}</div>
               {% endif -%}
-            {% endif -%}
-          {% else -%}
-            {% let this_index = wrong_solution_manager.advance() -%}
-            {% if let Some(solution) = puzzle.solution_lines|get_index(this_index) -%}
-              <div class="solution-box wrong">{{ solution|escape }}</div>
-            {% endif -%}
+            {% endfor -%}
+          </div>
+          {% if spoil -%}
+            <div class="solution-row">
+              {% for pattern_chunk in pattern_line.split(" ") -%}
+                {% if pattern_chunk != "XX" -%}
+                  {% if let Ok(index) = usize::from_str_radix(pattern_chunk, 10) -%}
+                    {% if let Some(solution) = sub_puzzle.solution_lines|get_index(index - 1) -%}
+                      <div class="solution-box correct">{{ solution|escape }}</div>
+                    {% endif -%}
+                  {% endif -%}
+                {% else -%}
+                  {% let this_index = wrong_solution_manager.advance() -%}
+                  {% if let Some(solution) = sub_puzzle.solution_lines|get_index(this_index) -%}
+                    <div class="solution-box wrong">{{ solution|escape }}</div>
+                  {% endif -%}
+                {% endif -%}
+              {% endfor -%}
+            </div>
           {% endif -%}
         {% endfor -%}
+
+        {% if spoil -%}
+          <div class="all-guess-row">
+            {% for index in wrong_solution_manager.correct_indexes() -%}
+              {% if let Some(guess) = sub_puzzle.solution_lines|get_index(index) -%}
+                <div class="solution-box">{{ guess|escape }}</div>
+              {% endif -%}
+            {% endfor -%}
+          </div>
+        {% endif -%}
+      </div>
+
+    {% else -%}
+
+      <div class="field">
+        {% for (guess, solution) in sub_puzzle.guess_lines -%}
+          <div class="field-row guess-row">
+            {%- for (g, s) in guess.chars().zip(solution.chars()) -%}
+              <div class="field-box guess-{{ g|escape }}">{% if spoil %}{{ s|escape }}{% endif %}</div>
+            {%- endfor -%}
+          </div>
+        {% endfor -%}
+
+        {% if spoil && !sub_puzzle.victory -%}
+          <div class="field-row solution-row">
+            {%- for s in sub_puzzle.solution.chars() -%}
+              <div class="field-box solution">{{ s|escape }}</div>
+            {%- endfor -%}
+          </div>
+        {% endif -%}
+
       </div>
     {% endif -%}
-  {% endfor -%}
-
-  {% if spoil -%}
-    <div class="all-guess-row">
-      {% for index in wrong_solution_manager.correct_indexes() -%}
-        {% if let Some(guess) = puzzle.solution_lines|get_index(index) -%}
-          <div class="solution-box">{{ guess|escape }}</div>
-        {% endif -%}
-      {% endfor -%}
-    </div>
-  {% endif -%}
-</div>
-
-{% else -%}
-
-<div class="field">
-{% for (guess, solution) in puzzle.guess_lines -%}
-<div class="field-row guess-row">
-  {%- for (g, s) in guess.chars().zip(solution.chars()) -%}
-  <div class="field-box guess-{{ g|escape }}">{% if spoil %}{{ s|escape }}{% endif %}</div>
-  {%- endfor -%}
-</div>
+  </div>
 {% endfor -%}
-
-{% if spoil && !puzzle.victory() -%}
-<div class="field-row solution-row">
-  {%- for s in puzzle.solution.chars() -%}
-  <div class="field-box solution">{{ s|escape }}</div>
-  {%- endfor -%}
-</div>
-{% endif -%}
-
-</div>
-{% endif -%}
 
 <div class="tail">{{ puzzle.tail|escape }}</div>
 

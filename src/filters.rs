@@ -4,7 +4,7 @@ use std::ops::Range;
 
 use askama;
 
-use crate::PuzzlePart;
+use crate::{PuzzlePart, SubPuzzle};
 
 
 pub(crate) struct WrongSolutionManager {
@@ -83,24 +83,30 @@ pub(crate) fn puzzle_string(puzzle_part: &PuzzlePart) -> askama::Result<String> 
     let correct_square = '\u{1F7E9}';
     let misplaced_square = if puzzle_part.site.css_class == "nerdle" { '\u{1F7EA}' } else { '\u{1F7E8}' };
     let wrong_square = '\u{2B1C}'; // or \u{2B1B} in dark mode
-    for (i, (guess, _solution)) in puzzle_part.guess_lines.iter().enumerate() {
-        for row_char in guess.chars() {
-            if row_char == 'C' {
-                ret.push(correct_square);
-            } else if row_char == 'M' {
-                ret.push(misplaced_square);
-            } else if row_char == 'W' {
-                ret.push(wrong_square);
-            } else if puzzle_part.site.variant == "geo" {
-                // probably the arrow behind the squares
-                ret.push(row_char);
-                // append the emoji variation selector
-                ret.push('\u{FE0F}');
-            }
+    for (j, sub_puzzle) in puzzle_part.sub_puzzles.iter().enumerate() {
+        if j > 0 {
+            ret.push_str("\n\n");
         }
 
-        if puzzle_part.site.variant != "audio" && i < puzzle_part.guess_lines.len()-1 {
-            ret.push('\n');
+        for (i, (guess, _solution)) in sub_puzzle.guess_lines.iter().enumerate() {
+            for row_char in guess.chars() {
+                if row_char == 'C' {
+                    ret.push(correct_square);
+                } else if row_char == 'M' {
+                    ret.push(misplaced_square);
+                } else if row_char == 'W' {
+                    ret.push(wrong_square);
+                } else if puzzle_part.site.variant == "geo" {
+                    // probably the arrow behind the squares
+                    ret.push(row_char);
+                    // append the emoji variation selector
+                    ret.push('\u{FE0F}');
+                }
+            }
+
+            if puzzle_part.site.variant != "audio" && i < sub_puzzle.guess_lines.len()-1 {
+                ret.push('\n');
+            }
         }
     }
 
@@ -112,16 +118,16 @@ pub(crate) fn get_index<'t, 'i, T>(slice: &'t [T], index: &'i usize) -> askama::
     Ok(slice.get(*index))
 }
 
-pub(crate) fn make_wrong_solution_manager(puzzle: &PuzzlePart) -> askama::Result<WrongSolutionManager> {
+pub(crate) fn make_wrong_solution_manager(sub_puzzle: &SubPuzzle) -> askama::Result<WrongSolutionManager> {
     // calculate how many wrong guesses we have
-    let wrong_guesses = puzzle.pattern_lines
+    let wrong_guesses = sub_puzzle.pattern_lines
         .iter()
         .flat_map(|ln| ln.split(' '))
         .filter(|chunk| *chunk == "XX")
         .count();
 
     // the number of base guesses is the total number of solution lines minus the number of wrong guesses
-    let base_guesses = puzzle.solution_lines.len() - wrong_guesses;
+    let base_guesses = sub_puzzle.solution_lines.len() - wrong_guesses;
 
     Ok(WrongSolutionManager::new(base_guesses))
 }
