@@ -13,6 +13,28 @@
 (function() {
     'use strict';
 
+    function getMaxGuessCount() {
+        if (window.location.hostname === "nerdlegame.com") {
+            return 6;
+        } else if (window.location.hostname === "bi.nerdlegame.com") {
+            return 7;
+        } else {
+            return null;
+        }
+    }
+
+    function getCorrectSolutions(gameState) {
+        if (window.location.hostname === "nerdlegame.com") {
+            // single string; array-ify
+            return [gameState.solution];
+        } else if (window.location.hostname === "bi.nerdlegame.com") {
+            // already an array
+            return gameState.solution;
+        } else {
+            return null;
+        }
+    }
+
     function setUpButton(navBar) {
         var lastNavButton = navBar.children[navBar.children.length - 1];
 
@@ -26,9 +48,30 @@
         copyButton.addEventListener("click", function () {
             var gameState = JSON.parse(window.localStorage.gameState);
             var guessList = gameState.guesses;
-            if (guessList.length === 6 && guessList[guessList.length - 1] !== gameState.solution) {
-                // defeated; also append correct solution
-                guessList.push(gameState.solution);
+            var i, j;
+
+            if (guessList.length === getMaxGuessCount()) {
+                // potentially defeated; check that
+                var correctSolutions = getCorrectSolutions(gameState);
+                var isSolutionCorrect = [];
+                for (i = 0; i < correctSolutions.length; i++) {
+                    isSolutionCorrect.push(false);
+                }
+
+                for (i = 0; i < guessList.length; i++) {
+                    for (j = 0; j < correctSolutions.length; j++) {
+                        if (guessList[i] === correctSolutions[j]) {
+                            isSolutionCorrect[j] = true;
+                        }
+                    }
+                }
+
+                // append correct solutions for puzzles where defeated
+                for (i = 0; i < correctSolutions.length; i++) {
+                    if (!isSolutionCorrect[i]) {
+                        guessList.push(correctSolutions[i]);
+                    }
+                }
             }
             var guesses = guessList.join("\n");
 
