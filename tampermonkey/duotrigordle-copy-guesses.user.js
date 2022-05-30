@@ -32,6 +32,52 @@
                 copyButton.value = "failed";
             });
         });
+
+        // also enable double-clicking on a board
+        var boards = document.querySelectorAll("div.boards > div.board");
+        var i;
+        const LINE_LENGTH = 5;
+        for (i = 0; i < boards.length; i++) {
+            var board = boards[i];
+            board.addEventListener("dblclick", function () {
+                var thisBoard = this;
+
+                // collect the state of this board
+                var cells = thisBoard.querySelectorAll("div.cell");
+                var j, k;
+                var lines = [];
+                for (j = 0; j < cells.length/LINE_LENGTH; j++) {
+                    var thisLine = "";
+                    for (k = 0; k < LINE_LENGTH; k++) {
+                        var cell = cells[LINE_LENGTH*j + k];
+                        var cellLetter = cell.querySelector("span.letter");
+                        if (cellLetter.textContent === "") {
+                            continue;
+                        }
+
+                        if (cell.classList.contains("green")) {
+                            thisLine += "c";
+                        } else if (cell.classList.contains("yellow")) {
+                            thisLine += "m";
+                        } else {
+                            thisLine += "w";
+                        }
+                    }
+                    if (thisLine.length != LINE_LENGTH) {
+                        break;
+                    }
+                    lines.push(thisLine);
+                }
+                var linesString = lines.join("\n");
+
+                // copy to clipboard
+                navigator.clipboard.writeText(linesString).then(function () {
+                    alert("board colors copied");
+                }, function () {
+                    alert("board copy failed");
+                });
+            });
+        }
     }
 
     var waitAndGiveHeaderBar;
