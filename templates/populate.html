@@ -51,14 +51,21 @@
     <select id="wordle-archive-populate-site" name="site" required="required">
       <optgroup label="Not yet solved today">
         {% for site in sites -%}
-          {% if !solved_sites.contains(site.id) -%}
+          {% if site.available && !solved_sites.contains(site.id) -%}
             <option value="{{ site.id }}">{{ site.name|escape }}</option>
           {% endif -%}
         {% endfor -%}
       </optgroup>
       <optgroup label="Already solved today">
         {% for site in sites -%}
-          {% if solved_sites.contains(site.id) -%}
+          {% if site.available && solved_sites.contains(site.id) -%}
+            <option value="{{ site.id }}">{{ site.name|escape }}</option>
+          {% endif -%}
+        {% endfor -%}
+      </optgroup>
+      <optgroup label="Unavailable">
+        {% for site in sites -%}
+          {% if !site.available -%}
             <option value="{{ site.id }}">{{ site.name|escape }}</option>
           {% endif -%}
         {% endfor -%}

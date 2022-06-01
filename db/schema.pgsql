@@ -9,6 +9,7 @@ CREATE TABLE wordle_archive.sites
 , css_class character varying(128) NOT NULL
 , variant character varying(32) NOT NULL
 , notes text NOT NULL DEFAULT ''
+, available boolean NOT NULL DEFAULT TRUE
 , CONSTRAINT pkey__sites PRIMARY KEY (id)
 , CONSTRAINT uq__sites__name UNIQUE (name)
 , CONSTRAINT uq__sites__url UNIQUE (url)
@@ -40,6 +41,7 @@ CREATE VIEW wordle_archive.sites_and_puzzles AS
         s.css_class site_css_class,
         s.variant,
         s.notes,
+        s.available,
         p.id puzzle_id,
         p.puzzle_date,
         p.day_ordinal,

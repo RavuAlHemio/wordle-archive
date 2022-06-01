@@ -64,7 +64,7 @@ impl DbConnection {
         }
 
         // run migrations
-        let current_migrations: [&(dyn DbMigration); 9] = [
+        let current_migrations: [&(dyn DbMigration); 10] = [
             &migrations_r0001::MigrationR0001ToR0002,
             &migrations_r0001::MigrationR0002ToR0003,
             &migrations_r0001::MigrationR0003ToR0004,
@@ -74,6 +74,7 @@ impl DbConnection {
             &migrations_r0006::MigrationR0007ToR0008,
             &migrations_r0006::MigrationR0008ToR0009,
             &migrations_r0006::MigrationR0009ToR0010,
+            &migrations_r0006::MigrationR0010ToR0011,
         ];
         for migration in current_migrations {
             match migration.is_required(&client, current_schema_version).await {
@@ -100,7 +101,7 @@ impl DbConnection {
         let rows_res = self.client.query(
             "
                 SELECT
-                    id, name, url, css_class, variant, notes
+                    id, name, url, css_class, variant, notes, available
                 FROM
                     wordle_archive.sites
                 ORDER BY
@@ -176,6 +177,7 @@ impl DbConnection {
         let css_class = row.get(3);
         let variant = row.get(4);
         let notes = row.get(5);
+        let available = row.get(6);
 
         PuzzleSite {
             id: site_id,
@@ -184,20 +186,22 @@ impl DbConnection {
             css_class,
             variant,
             notes,
+            available,
         }
     }
 
     fn row_to_site_and_puzzle(row: &tokio_postgres::Row) -> SiteAndPuzzle {
         let site = Self::row_to_site(row);
-        let id = row.get(6);
-        let date = row.get(7);
-        let day_ordinal = row.get(8);
-        let head = row.get(9);
-        let tail = row.get(10);
-        let pattern = row.get(11);
-        let solution = row.get(12);
-        let attempts = row.get(13);
-        let raw_pattern = row.get(14);
+        const PUZZLE_OFFSET: usize = 7;
+        let id = row.get(PUZZLE_OFFSET + 0);
+        let date = row.get(PUZZLE_OFFSET + 1);
+        let day_ordinal = row.get(PUZZLE_OFFSET + 2);
+        let head = row.get(PUZZLE_OFFSET + 3);
+        let tail = row.get(PUZZLE_OFFSET + 4);
+        let pattern = row.get(PUZZLE_OFFSET + 5);
+        let solution = row.get(PUZZLE_OFFSET + 6);
+        let attempts = row.get(PUZZLE_OFFSET + 7);
+        let raw_pattern = row.get(PUZZLE_OFFSET + 8);
 
         let puzzle = Puzzle {
             id,
@@ -221,7 +225,7 @@ impl DbConnection {
         let rows_res = self.client.query(
             "
                 SELECT
-                    site_id, site_name, site_url, site_css_class, variant, notes,
+                    site_id, site_name, site_url, site_css_class, variant, notes, available,
                     puzzle_id, puzzle_date, day_ordinal, head, tail, pattern, solution, attempts,
                     raw_pattern
                 FROM
@@ -254,7 +258,7 @@ impl DbConnection {
         let row_opt_res = self.client.query_opt(
             "
                 SELECT
-                    site_id, site_name, site_url, site_css_class, variant, notes,
+                    site_id, site_name, site_url, site_css_class, variant, notes, available,
                     puzzle_id, puzzle_date, day_ordinal, head, tail, pattern, solution, attempts,
                     raw_pattern
                 FROM
