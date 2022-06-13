@@ -24,6 +24,7 @@
       if (url) {
         var anchor = document.createElement("a");
         anchor.href = url;
+        anchor.rel = "noopener";
         anchor.textContent = "go to site";
         siteLink.appendChild(anchor);
       }
