@@ -216,11 +216,17 @@ fn return_404() -> Result<Response<Body>, Infallible> {
     render_template(&Error404Template, 404, HashMap::new())
 }
 
-fn to_path_segments<'a>(path: &'a str) -> Option<Vec<Cow<'a, str>>> {
+fn to_path_segments<'a>(path: &'a str, strip_trailing_empty: bool) -> Option<Vec<Cow<'a, str>>> {
     let mut segments = Vec::new();
-    for piece_percent in path.split("/") {
+    let pieces_percent: Vec<&str> = path.split('/').collect();
+    for (i, piece_percent) in pieces_percent.iter().enumerate() {
         if piece_percent.len() == 0 {
-            continue;
+            if i == 0 {
+                continue;
+            }
+            if strip_trailing_empty && i == pieces_percent.len() - 1 {
+                continue;
+            }
         }
 
         let piece: Cow<str> = percent_decode_str(piece_percent)
@@ -295,8 +301,38 @@ fn render_template<T: Template>(
     Ok(response)
 }
 
+fn return_internal_redirect(base_path_segs: &[Cow<str>], path: &str, code: u16) -> Result<Response<Body>, Infallible> {
+    let mut local_url = String::new();
+    for bps in base_path_segs {
+        local_url.push('/');
+        local_url.push_str(&bps);
+    }
+    local_url.push_str(path);
+
+    let response_res = Response::builder()
+        .status(code)
+        .header("Location", &local_url)
+        .header("Content-Type", "text/plain; charset=utf-8")
+        .body(Body::from(format!("Redirecting to {}", local_url)));
+    match response_res {
+        Ok(r) => Ok(r),
+        Err(e) => {
+            error!("failed to build redirect response: {}", e);
+            return_500()
+        },
+    }
+}
+
+fn return_redirect_todays_wordle(base_path_segs: &[Cow<str>]) -> Result<Response<Body>, Infallible> {
+    let today = Local::now().date().naive_local().format("%Y-%m-%d").to_string();
+    let mut today_path = String::new();
+    today_path.push_str("/wordle/");
+    today_path.push_str(&today);
+    return_internal_redirect(&base_path_segs, &today_path, 303)
+}
+
 async fn handle_request(req: Request<Body>) -> Result<Response<Body>, Infallible> {
-    let path_segs_opt = to_path_segments(req.uri().path());
+    let path_segs_opt = to_path_segments(req.uri().path(), false);
     let mut path_segs: Vec<String> = match path_segs_opt {
         Some(p) => p.iter().map(|s| s.clone().into_owned()).collect(),
         None => return return_404(),
@@ -308,7 +344,7 @@ async fn handle_request(req: Request<Body>) -> Result<Response<Body>, Infallible
             .read().await;
         config_guard.base_path.clone()
     };
-    let base_path_segs_opt = to_path_segments(&base_path);
+    let base_path_segs_opt = to_path_segments(&base_path, true);
     let base_path_segs = match base_path_segs_opt {
         Some(bps) => bps,
         None => {
@@ -332,34 +368,23 @@ async fn handle_request(req: Request<Body>) -> Result<Response<Body>, Infallible
     // remove path prefix
     path_segs.drain(0..base_path_segs.len());
 
-    if path_segs.len() == 0 {
-        // redirect to today's wordle
-        let today = Local::now().date().naive_local().format("%Y-%m-%d").to_string();
-        let mut today_url = String::new();
-        for bps in base_path_segs {
-            today_url.push('/');
-            today_url.push_str(&bps);
+    if path_segs.len() == 0 || (path_segs.len() == 1 && path_segs[0] == "") {
+        // http://example.com/wordle-archive or http://example.com/wordle-archive/
+        return_redirect_todays_wordle(&base_path_segs)
+    } else if path_segs.len() == 1 && path_segs[0] == "wordle" {
+        // http://example.com/wordle-archive/wordle
+        return_redirect_todays_wordle(&base_path_segs)
+    } else if path_segs.len() == 2 && path_segs[0] == "wordle" {
+        if path_segs[1].len() == 0 {
+            // http://example.com/wordle-archive/wordle/
+            return_redirect_todays_wordle(&base_path_segs)
+        } else {
+            // http://example.com/wordle-archive/wordle/2022-06-16
+            handle_wordle(req, path_segs.get(1)).await
         }
-        today_url.push_str("/wordle/");
-        today_url.push_str(&today);
-
-        let response_res = Response::builder()
-            .status(303)
-            .header("Location", &today_url)
-            .header("Content-Type", "text/plain; charset=utf-8")
-            .body(Body::from(format!("Redirecting to {}", today_url)));
-        match response_res {
-            Ok(r) => Ok(r),
-            Err(e) => {
-                error!("failed to build redirect response: {}", e);
-                return_500()
-            },
-        }
-    } else if path_segs.len() > 0 && path_segs[0] == "wordle" {
-        handle_wordle(req, path_segs.get(1)).await
     } else if path_segs.len() == 2 && path_segs[0] == "puzzle" {
         handle_puzzle(req, &path_segs[1]).await
-    } else if path_segs.len() > 0 && path_segs[0] == "populate" {
+    } else if path_segs.len() == 1 && path_segs[0] == "populate" {
         handle_populate(req).await
     } else if path_segs.len() == 1 && path_segs[0] == "stats" {
         handle_stats(req).await
