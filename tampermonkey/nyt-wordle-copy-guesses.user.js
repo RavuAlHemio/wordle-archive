@@ -43,11 +43,7 @@
     var waitAndGiveNavBar;
     var navBarCount = 0;
     waitAndGiveNavBar = function () {
-        var navBar = null;
-        var gameApp = document.querySelector("game-app");
-        if (gameApp !== null) {
-            navBar = gameApp.shadowRoot.querySelector(".menu-right");
-        }
+        var navBar = document.querySelector(".wordle-app-header div[class^=AppHeader-module_menuRight__]");
         if (navBar === null && navBarCount < 5) {
             navBarCount += 1;
             window.setTimeout(waitAndGiveNavBar, 200);
