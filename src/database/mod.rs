@@ -1,5 +1,6 @@
 mod migrations_r0001;
 mod migrations_r0006;
+mod migrations_r0011;
 pub(crate) mod migration_utils;
 
 
@@ -64,7 +65,7 @@ impl DbConnection {
         }
 
         // run migrations
-        let current_migrations: [&(dyn DbMigration); 10] = [
+        let current_migrations: [&(dyn DbMigration); 11] = [
             &migrations_r0001::MigrationR0001ToR0002,
             &migrations_r0001::MigrationR0002ToR0003,
             &migrations_r0001::MigrationR0003ToR0004,
@@ -75,6 +76,7 @@ impl DbConnection {
             &migrations_r0006::MigrationR0008ToR0009,
             &migrations_r0006::MigrationR0009ToR0010,
             &migrations_r0006::MigrationR0010ToR0011,
+            &migrations_r0011::MigrationR0011ToR0012,
         ];
         for migration in current_migrations {
             match migration.is_required(&client, current_schema_version).await {
@@ -105,7 +107,7 @@ impl DbConnection {
                 FROM
                     wordle_archive.sites
                 ORDER BY
-                    id
+                    ordering, id
             ",
             &[],
         ).await;
@@ -233,7 +235,7 @@ impl DbConnection {
                 WHERE
                     puzzle_date = $1
                 ORDER BY
-                    site_id, day_ordinal
+                    ordering, site_id, day_ordinal
             ",
             &[&date],
         ).await;
@@ -374,7 +376,7 @@ impl DbConnection {
                     FROM
                         wordle_archive.site_stats
                     ORDER BY
-                        site_id
+                        ordering, site_id
                 ",
                 &[],
             ).await;

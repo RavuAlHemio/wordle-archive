@@ -10,6 +10,7 @@ CREATE TABLE wordle_archive.sites
 , variant character varying(32) NOT NULL
 , notes text NOT NULL DEFAULT ''
 , available boolean NOT NULL DEFAULT TRUE
+, ordering bigint NOT NULL DEFAULT 0
 , CONSTRAINT pkey__sites PRIMARY KEY (id)
 , CONSTRAINT uq__sites__name UNIQUE (name)
 , CONSTRAINT uq__sites__url UNIQUE (url)
@@ -42,6 +43,7 @@ CREATE VIEW wordle_archive.sites_and_puzzles AS
         s.variant,
         s.notes,
         s.available,
+        s.ordering,
         p.id puzzle_id,
         p.puzzle_date,
         p.day_ordinal,
@@ -62,7 +64,7 @@ CREATE TABLE wordle_archive.schema_version
 , CONSTRAINT pkey__schema_version PRIMARY KEY (schema_version)
 );
 
-INSERT INTO wordle_archive.schema_version (schema_version) VALUES (10);
+INSERT INTO wordle_archive.schema_version (schema_version) VALUES (12);
 
 CREATE FUNCTION wordle_archive.site_streaks(streak_site_id bigint) RETURNS TABLE(streak bigint, victory boolean) AS $$
 DECLARE
@@ -176,6 +178,7 @@ CREATE VIEW wordle_archive.site_stats AS
         s.url site_url,
         s.css_class site_css_class,
         s.variant,
+        s.ordering,
         (
             SELECT CAST(COUNT(*) AS bigint)
             FROM wordle_archive.puzzles vic
