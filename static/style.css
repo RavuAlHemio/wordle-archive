@@ -55,3 +55,10 @@ section.puzzle {
 .variant-wordle32 .all-guess-row .solution-box.rating-correct { background-color: #538d4e; color: #fff; }
 .variant-wordle32 .all-guess-row .solution-box.rating-misplaced { background-color: #b59f3b; color: #fff; }
 .variant-wordle32 .all-guess-row .solution-box.rating-wrong { background-color: #3a3a3c; color: #fff; }
+
+@media screen and (prefers-color-scheme: dark) {
+  body { background-color: black; color: #ccc; }
+  input[type=text], input[type=number], select, textarea { background-color: black; color: #ccc; }
+  a:link { color: #ff0; }
+  a:visited { color: #0ff; }
+}
