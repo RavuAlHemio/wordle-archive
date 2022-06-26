@@ -389,8 +389,10 @@ async fn handle_request(req: Request<Body>) -> Result<Response<Body>, Infallible
 
     // calculate static path prefix
     let mut static_prefix = String::new();
-    for _ in 0..path_segs.len() {
-        static_prefix.push_str("../");
+    if path_segs.len() > 0 {
+        for _ in 0..path_segs.len()-1 {
+            static_prefix.push_str("../");
+        }
     }
     static_prefix.push_str("static");
 
