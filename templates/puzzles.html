@@ -53,12 +53,12 @@
 
 <p class="puzzle-links"><a href="../puzzle/{{ puzzle.id }}">only this</a> &middot; <a href="{{ puzzle.site.url|escape }}">visit site</a></p>
 
-<section class="puzzle site-{{ puzzle.site.css_class|escape }}">
+<section class="puzzle puzzle-id-{{ puzzle.id }} site-{{ puzzle.site.css_class|escape }}">
 
 <div class="head">{{ puzzle.head|escape }}</div>
 
-{% for sub_puzzle in puzzle.sub_puzzles -%}
-  <div class="sub-puzzle">
+{% for (sub_puzzle_index, sub_puzzle) in puzzle.sub_puzzles.iter().enumerate() -%}
+  <div class="sub-puzzle sub-puzzle-index-{{ sub_puzzle_index }} variant-{{ puzzle.site.variant|escape }}">
     {% if puzzle.site.variant == "geo" -%}
       {% for (guess, solution) in sub_puzzle.guess_lines -%}
       <div class="field-row guess-row">
@@ -136,17 +136,23 @@
             </div>
           {% endif -%}
         {% endfor -%}
-
-        {% if spoil -%}
-          <div class="all-guess-row">
-            {% for index in wrong_solution_manager.correct_indexes() -%}
-              {% if let Some(guess) = sub_puzzle.solution_lines|get_index(index) -%}
-                <div class="solution-box">{{ guess|escape }}</div>
-              {% endif -%}
-            {% endfor -%}
-          </div>
-        {% endif -%}
       </div>
+
+      {% if spoil -%}
+        <div class="all-guess-pane">
+          {% for index in wrong_solution_manager.correct_indexes() -%}
+            {% if let Some(guess) = sub_puzzle.solution_lines|get_index(index) -%}
+              <div class="all-guess-row">
+                {% for c in guess.chars() -%}
+                  <div class="solution-box">{{ c|escape }}</div>
+                {% endfor -%}
+              </div>
+            {% endif -%}
+          {% endfor -%}
+        </div>
+        <script src="{{ static_prefix }}/wordle32-spoiler.js"></script>
+        <script>WordleArchive.Wordle32Spoiler.register({{ puzzle.id }}, {{ sub_puzzle_index }});</script>
+      {% endif -%}
 
     {% else -%}
 

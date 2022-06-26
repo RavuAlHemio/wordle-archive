@@ -1130,6 +1130,8 @@ async fn handle_static<P: Into<String>>(_req: Request<Body>, static_prefix: P, s
         return_static(include_bytes!("../static/style.css"), "text/css")
     } else if static_path.starts_with("puzzles.") {
         typescript!("puzzles")
+    } else if static_path.starts_with("wordle32-spoiler.") {
+        typescript!("wordle32-spoiler")
     } else {
         return_404(static_prefix)
     }
