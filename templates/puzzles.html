@@ -3,34 +3,15 @@
 {% block title %}Wordle Archive{% endblock %}
 
 {% block addhead %}
+<script src="{{ static_prefix }}/puzzles.js"></script>
 <script type="text/javascript">
   //<![CDATA[
-  document.addEventListener("DOMContentLoaded", function() {
-    var puzzles = [
+    WordleArchive.Puzzles.puzzles = [
       {% for puzzle in puzzles -%}
-      {{ puzzle|puzzle_string|jsstring|safe }},
+        {{ puzzle| puzzle_string | jsstring | safe }},
       {% endfor -%}
     ];
-    var linkboxes = document.querySelectorAll(".puzzle-links");
-    for (var i = 0; i < linkboxes.length; i++) {
-      var addMiddot = document.createTextNode(" \u00B7 ");
-      linkboxes[i].appendChild(addMiddot);
-
-      var copyLink = document.createElement("a");
-      copyLink.href = "javascript:void(0)";
-      copyLink.textContent = "copy";
-      (function (copyLink, i) {
-        copyLink.addEventListener("click", function () {
-          navigator.clipboard.writeText(puzzles[i]).then(function () {
-            copyLink.textContent = "copied!";
-          }, function () {
-            copyLink.textContent = "failed! :-(";
-          });
-        });
-      })(copyLink, i);
-      linkboxes[i].appendChild(copyLink);
-    }
-  });
+    WordleArchive.Puzzles.setUp();
   //]]>
 </script>
 {% endblock %}

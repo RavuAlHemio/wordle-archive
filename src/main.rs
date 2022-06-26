@@ -38,19 +38,26 @@ struct Opts {
 #[template(path = "400.html")]
 struct Error400Template {
     pub reason: String,
+    pub static_prefix: String,
 }
 
-#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd, Template)]
+#[derive(Clone, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd, Template)]
 #[template(path = "403.html")]
-struct Error403Template;
+struct Error403Template {
+    pub static_prefix: String,
+}
 
-#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd, Template)]
+#[derive(Clone, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd, Template)]
 #[template(path = "404.html")]
-struct Error404Template;
+struct Error404Template {
+    pub static_prefix: String,
+}
 
-#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd, Template)]
+#[derive(Clone, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd, Template)]
 #[template(path = "no-puzzles.html")]
-struct NoPuzzlesTemplate;
+struct NoPuzzlesTemplate {
+    pub static_prefix: String,
+}
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Template)]
 #[template(path = "puzzles.html")]
@@ -61,6 +68,7 @@ struct PuzzlesTemplate {
     pub date_opt: Option<NaiveDate>,
     pub token: Option<String>,
     pub stats_upwards_curve: bool,
+    pub static_prefix: String,
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -92,16 +100,20 @@ struct PopulateTemplate {
     pub solved_sites: HashSet<i64>,
     pub today_string: String,
     pub token: Option<String>,
+    pub static_prefix: String,
 }
 
-#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd, Template)]
+#[derive(Clone, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd, Template)]
 #[template(path = "populate-success.html")]
-struct PopulateSuccessTemplate;
+struct PopulateSuccessTemplate {
+    pub static_prefix: String,
+}
 
 #[derive(Clone, Debug, PartialEq, Template)]
 #[template(path = "stats.html")]
 struct StatsTemplate {
     pub stats: Vec<Stats>,
+    pub static_prefix: String,
 }
 
 
@@ -201,19 +213,26 @@ fn return_500() -> Result<Response<Body>, Infallible> {
     Ok(resp)
 }
 
-fn return_400<S: Into<String>>(reason: S) -> Result<Response<Body>, Infallible> {
+fn return_400<S: Into<String>, P: Into<String>>(reason: S, static_prefix: P) -> Result<Response<Body>, Infallible> {
     let template = Error400Template {
         reason: reason.into(),
+        static_prefix: static_prefix.into(),
     };
     render_template(&template, 400, HashMap::new())
 }
 
-fn return_403() -> Result<Response<Body>, Infallible> {
-    render_template(&Error403Template, 403, HashMap::new())
+fn return_403<P: Into<String>>(static_prefix: P) -> Result<Response<Body>, Infallible> {
+    let template = Error403Template {
+        static_prefix: static_prefix.into(),
+    };
+    render_template(&template, 403, HashMap::new())
 }
 
-fn return_404() -> Result<Response<Body>, Infallible> {
-    render_template(&Error404Template, 404, HashMap::new())
+fn return_404<P: Into<String>>(static_prefix: P) -> Result<Response<Body>, Infallible> {
+    let template = Error404Template {
+        static_prefix: static_prefix.into(),
+    };
+    render_template(&template, 404, HashMap::new())
 }
 
 fn to_path_segments<'a>(path: &'a str, strip_trailing_empty: bool) -> Option<Vec<Cow<'a, str>>> {
@@ -335,7 +354,7 @@ async fn handle_request(req: Request<Body>) -> Result<Response<Body>, Infallible
     let path_segs_opt = to_path_segments(req.uri().path(), false);
     let mut path_segs: Vec<String> = match path_segs_opt {
         Some(p) => p.iter().map(|s| s.clone().into_owned()).collect(),
-        None => return return_404(),
+        None => return return_404(""),
     };
 
     let base_path = {
@@ -355,18 +374,25 @@ async fn handle_request(req: Request<Body>) -> Result<Response<Body>, Infallible
 
     if base_path_segs.len() > path_segs.len() {
         // path cannot be a subpath of base_path if base_path has more components
-        return return_404();
+        return return_404("");
     }
     // all() returns true if the iterator is empty, e.g. if base_path_segs is empty
     let base_path_is_prefix_of_path = base_path_segs.iter()
         .zip(path_segs.iter().take(base_path_segs.len()))
         .all(|(bp, p)| bp == p);
     if !base_path_is_prefix_of_path {
-        return return_404();
+        return return_404("");
     }
 
     // remove path prefix
     path_segs.drain(0..base_path_segs.len());
+
+    // calculate static path prefix
+    let mut static_prefix = String::new();
+    for _ in 0..path_segs.len() {
+        static_prefix.push_str("../");
+    }
+    static_prefix.push_str("static");
 
     if path_segs.len() == 0 || (path_segs.len() == 1 && path_segs[0] == "") {
         // http://example.com/wordle-archive or http://example.com/wordle-archive/
@@ -380,16 +406,18 @@ async fn handle_request(req: Request<Body>) -> Result<Response<Body>, Infallible
             return_redirect_todays_wordle(&base_path_segs)
         } else {
             // http://example.com/wordle-archive/wordle/2022-06-16
-            handle_wordle(req, path_segs.get(1)).await
+            handle_wordle(req, static_prefix, path_segs.get(1)).await
         }
     } else if path_segs.len() == 2 && path_segs[0] == "puzzle" {
-        handle_puzzle(req, &path_segs[1]).await
+        handle_puzzle(req, static_prefix, &path_segs[1]).await
     } else if path_segs.len() == 1 && path_segs[0] == "populate" {
-        handle_populate(req).await
+        handle_populate(req, static_prefix).await
     } else if path_segs.len() == 1 && path_segs[0] == "stats" {
-        handle_stats(req).await
+        handle_stats(req, static_prefix).await
+    } else if path_segs.len() == 2 && path_segs[0] == "static" {
+        handle_static(req, static_prefix, &path_segs[1]).await
     } else {
-        return_404()
+        return_404(static_prefix)
     }
 }
 
@@ -447,15 +475,16 @@ async fn check_allow_spoiling(puzzle_date: &NaiveDate) -> bool {
     }
 }
 
-async fn handle_wordle<S: AsRef<str>>(
+async fn handle_wordle<S: AsRef<str>, P: Into<String>>(
     req: Request<Body>,
+    static_prefix: P,
     date_string_opt: Option<S>,
 ) -> Result<Response<Body>, Infallible> {
     let date_opt = match date_string_opt {
         Some(ds) => {
             match NaiveDate::parse_from_str(ds.as_ref(), "%Y-%m-%d") {
                 Ok(d) => Some(d),
-                Err(_) => return return_404(),
+                Err(_) => return return_404(static_prefix),
             }
         },
         None => None,
@@ -481,7 +510,9 @@ async fn handle_wordle<S: AsRef<str>>(
             match db_conn.get_most_recent_puzzle_date().await {
                 OptionResult::Present(d) => d,
                 OptionResult::Absent => {
-                    let template = NoPuzzlesTemplate;
+                    let template = NoPuzzlesTemplate {
+                        static_prefix: static_prefix.into(),
+                    };
                     return render_template(&template, 404, HashMap::new());
                 },
                 OptionResult::Error => return return_500(), // error already logged
@@ -518,17 +549,19 @@ async fn handle_wordle<S: AsRef<str>>(
         date_opt: Some(date),
         token,
         stats_upwards_curve,
+        static_prefix: static_prefix.into(),
     };
     render_template(&template, 200, HashMap::new())
 }
 
-async fn handle_puzzle<S: AsRef<str>>(
+async fn handle_puzzle<S: AsRef<str>, P: Into<String>>(
     req: Request<Body>,
+    static_prefix: P,
     id_string: S,
 ) -> Result<Response<Body>, Infallible> {
     let id: i64 = match id_string.as_ref().parse() {
         Ok(i) => i,
-        Err(_) => return return_404(),
+        Err(_) => return return_404(static_prefix),
     };
 
     let mut spoil = false;
@@ -546,7 +579,7 @@ async fn handle_puzzle<S: AsRef<str>>(
 
     let db_puzzle = match db_conn.get_puzzle_by_id(id).await {
         OptionResult::Present(d) => d,
-        OptionResult::Absent => return return_404(),
+        OptionResult::Absent => return return_404(static_prefix),
         OptionResult::Error => return return_500(), // error already logged
     };
     let puzzle = db_puzzle_to_puzzle_part(&db_puzzle);
@@ -568,21 +601,22 @@ async fn handle_puzzle<S: AsRef<str>>(
         date_opt: None,
         token,
         stats_upwards_curve,
+        static_prefix: static_prefix.into(),
     };
     render_template(&template, 200, HashMap::new())
 }
 
-async fn handle_populate(req: Request<Body>) -> Result<Response<Body>, Infallible> {
+async fn handle_populate<P: Into<String>>(req: Request<Body>, static_prefix: P) -> Result<Response<Body>, Infallible> {
     // check for token
     let query_pairs = get_query_pairs(req.uri());
     if !has_valid_token(&query_pairs, true).await {
-        return return_403();
+        return return_403(static_prefix);
     }
 
     if req.method() == Method::POST {
-        handle_populate_post(req).await
+        handle_populate_post(req, static_prefix).await
     } else if req.method() == Method::GET {
-        handle_populate_get(&req, &query_pairs).await
+        handle_populate_get(&req, static_prefix, &query_pairs).await
     } else {
         let body = Body::from("invalid method; requires GET or POST");
         let response_res = Response::builder()
@@ -600,7 +634,11 @@ async fn handle_populate(req: Request<Body>) -> Result<Response<Body>, Infallibl
     }
 }
 
-async fn handle_populate_get(_req: &Request<Body>, query_pairs: &HashMap<Cow<'_, str>, Cow<'_, str>>) -> Result<Response<Body>, Infallible> {
+async fn handle_populate_get<P: Into<String>>(
+    _req: &Request<Body>,
+    static_prefix: P,
+    query_pairs: &HashMap<Cow<'_, str>, Cow<'_, str>>,
+) -> Result<Response<Body>, Infallible> {
     let db_conn = match DbConnection::new().await {
         Some(c) => c,
         None => return return_500(), // error already logged
@@ -623,6 +661,7 @@ async fn handle_populate_get(_req: &Request<Body>, query_pairs: &HashMap<Cow<'_,
         solved_sites,
         today_string,
         token,
+        static_prefix: static_prefix.into(),
     };
     render_template(&template, 200, HashMap::new())
 }
@@ -645,7 +684,10 @@ fn decode_square(square: char) -> Option<char> {
     }
 }
 
-async fn handle_populate_post(req: Request<Body>) -> Result<Response<Body>, Infallible> {
+async fn handle_populate_post<P: Into<String>>(
+    req: Request<Body>,
+    static_prefix: P,
+) -> Result<Response<Body>, Infallible> {
     let db_conn = match DbConnection::new().await {
         Some(c) => c,
         None => return return_500(), // error already logged
@@ -667,11 +709,11 @@ async fn handle_populate_post(req: Request<Body>) -> Result<Response<Body>, Infa
 
     let site_id_str = match form_pairs.get("site") {
         Some(s) => s,
-        None => return return_400("missing field \"site\""),
+        None => return return_400("missing field \"site\"", static_prefix),
     };
     let site_id: i64 = match site_id_str.parse() {
         Ok(s) => s,
-        Err(_) => return return_400("invalid value for field \"site\""),
+        Err(_) => return return_400("invalid value for field \"site\"", static_prefix),
     };
 
     let day_ordinal_str = form_pairs.get("day-ordinal")
@@ -679,7 +721,7 @@ async fn handle_populate_post(req: Request<Body>) -> Result<Response<Body>, Infa
         .unwrap_or_else(|| "0".to_owned());
     let day_ordinal: i64 = match day_ordinal_str.parse() {
         Ok(d) => d,
-        Err(_) => return return_400("invalid value for field \"day-ordinal\""),
+        Err(_) => return return_400("invalid value for field \"day-ordinal\"", static_prefix),
     };
 
     let sites = match db_conn.get_sites().await {
@@ -689,16 +731,16 @@ async fn handle_populate_post(req: Request<Body>) -> Result<Response<Body>, Infa
 
     let site = match sites.iter().filter(|s| s.id == site_id).nth(0) {
         Some(s) => s,
-        None => return return_400(format!("site {} not found", site_id)),
+        None => return return_400(format!("site {} not found", site_id), static_prefix),
     };
 
     let result = match form_pairs.get("result") {
         Some(s) => s.replace("\r", ""),
-        None => return return_400("missing field \"result\""),
+        None => return return_400("missing field \"result\"", static_prefix),
     };
     let raw_solution = match form_pairs.get("solution") {
         Some(s) => s.replace("\r", ""),
-        None => return return_400("missing field \"solution\""),
+        None => return return_400("missing field \"solution\"", static_prefix),
     };
 
     let puzzle_data = if site.variant == "geo" {
@@ -741,11 +783,14 @@ async fn handle_populate_post(req: Request<Body>) -> Result<Response<Body>, Infa
 
             let solution_line_count = raw_solution.split("\n").count();
             if expected_line_count != solution_line_count {
-                return return_400(format!(
-                    "{} result lines, {} => expected {} solution lines but obtained {}",
-                    result_lines.len(), if victory { "victory" } else { "defeat" },
-                    expected_line_count, solution_line_count,
-                ));
+                return return_400(
+                    format!(
+                        "{} result lines, {} => expected {} solution lines but obtained {}",
+                        result_lines.len(), if victory { "victory" } else { "defeat" },
+                        expected_line_count, solution_line_count,
+                    ),
+                    static_prefix,
+                );
             }
 
             PuzzleData::new(
@@ -758,7 +803,7 @@ async fn handle_populate_post(req: Request<Body>) -> Result<Response<Body>, Infa
                 Some(expected_line_count),
             )
         } else {
-            return return_400("failed to decode guesses");
+            return return_400("failed to decode guesses", static_prefix);
         }
     } else if site.variant == "audio" {
         let solution_lines: Vec<&str> = raw_solution.split('\n').collect();
@@ -783,10 +828,13 @@ async fn handle_populate_post(req: Request<Body>) -> Result<Response<Body>, Infa
                 result_string.chars().count() + 1
             };
             if expected_line_count != solution_lines.len() {
-                return return_400(format!(
-                    "{} guesses derived from result {:?}, {} solution lines; must be the same",
-                    expected_line_count, result_string, solution_lines.len(),
-                ));
+                return return_400(
+                    format!(
+                        "{} guesses derived from result {:?}, {} solution lines; must be the same",
+                        expected_line_count, result_string, solution_lines.len(),
+                    ),
+                    static_prefix,
+                );
             }
 
             // intersperse newline characters in the result string
@@ -814,7 +862,7 @@ async fn handle_populate_post(req: Request<Body>) -> Result<Response<Body>, Infa
                 Some(expected_line_count),
             )
         } else {
-            return return_400("failed to decode guesses");
+            return return_400("failed to decode guesses", static_prefix);
         }
     } else if site.variant == "wordle32" {
         let solution = raw_solution.trim();
@@ -836,10 +884,13 @@ async fn handle_populate_post(req: Request<Body>) -> Result<Response<Body>, Infa
                     } else if c == '\u{FE0F}' || c == '\u{20E3}' {
                         // ignore emoji variant selectors and enclosing keycaps
                     } else {
-                        return return_400(format!(
-                            "unknown result character {} (U+{:04X})",
-                            c, u32::from(c),
-                        ));
+                        return return_400(
+                            format!(
+                                "unknown result character {} (U+{:04X})",
+                                c, u32::from(c),
+                            ),
+                            static_prefix,
+                        );
                     }
                 }
             }
@@ -861,7 +912,7 @@ async fn handle_populate_post(req: Request<Body>) -> Result<Response<Body>, Infa
                 None,
             )
         } else {
-            return return_400("failed to decode guesses");
+            return return_400("failed to decode guesses", static_prefix);
         }
     } else {
         // verify solution
@@ -907,7 +958,7 @@ async fn handle_populate_post(req: Request<Body>) -> Result<Response<Body>, Infa
         }
 
         if puzzles.len() == 0 {
-            return return_400("failed to decode guesses");
+            return return_400("failed to decode guesses", static_prefix);
         }
 
         let max_expected_line_count = puzzles.iter()
@@ -928,10 +979,13 @@ async fn handle_populate_post(req: Request<Body>) -> Result<Response<Body>, Infa
         };
 
         if expected_line_count != solution_lines.len() {
-            return return_400(format!(
-                "expected {}, obtained {} solution lines",
-                expected_line_count, solution_lines.len(),
-            ));
+            return return_400(
+                format!(
+                    "expected {}, obtained {} solution lines",
+                    expected_line_count, solution_lines.len(),
+                ),
+                static_prefix,
+            );
         }
 
         let first_puzzle = &puzzles[0];
@@ -983,7 +1037,10 @@ async fn handle_populate_post(req: Request<Body>) -> Result<Response<Body>, Infa
     if !db_conn.store_puzzle(&puzzle).await {
         return_500()
     } else {
-        render_template(&PopulateSuccessTemplate, 200, HashMap::new())
+        let template = PopulateSuccessTemplate {
+            static_prefix: static_prefix.into(),
+        };
+        render_template(&template, 200, HashMap::new())
     }
 }
 
@@ -1036,7 +1093,7 @@ async fn run() -> i32 {
     }
 }
 
-async fn handle_stats(_req: Request<Body>) -> Result<Response<Body>, Infallible> {
+async fn handle_stats<P: Into<String>>(_req: Request<Body>, static_prefix: P) -> Result<Response<Body>, Infallible> {
     let db_conn = match DbConnection::new().await {
         Some(c) => c,
         None => return return_500(), // error already logged
@@ -1049,8 +1106,48 @@ async fn handle_stats(_req: Request<Body>) -> Result<Response<Body>, Infallible>
 
     let template = StatsTemplate {
         stats,
+        static_prefix: static_prefix.into(),
     };
     render_template(&template, 200, HashMap::new())
+}
+
+async fn handle_static<P: Into<String>>(_req: Request<Body>, static_prefix: P, static_path: &str) -> Result<Response<Body>, Infallible> {
+    macro_rules! typescript {
+        ($basename:expr) => {
+            if static_path == concat!($basename, ".js") {
+                return_static(include_bytes!(concat!("../static/", $basename, ".js")), "text/javascript")
+            } else if static_path == concat!($basename, ".js.map") {
+                return_static(include_bytes!(concat!("../static/", $basename, ".js.map")), "application/json")
+            } else if static_path == concat!($basename, ".ts") {
+                return_static(include_bytes!(concat!("../static/", $basename, ".ts")), "text/vnd.typescript")
+            } else {
+                return_404(static_prefix)
+            }
+        };
+    }
+
+    if static_path == "style.css" {
+        return_static(include_bytes!("../static/style.css"), "text/css")
+    } else if static_path.starts_with("puzzles.") {
+        typescript!("puzzles")
+    } else {
+        return_404(static_prefix)
+    }
+}
+
+fn return_static(body_bytes: &[u8], content_type: &str) -> Result<Response<Body>, Infallible> {
+    let response_res = Response::builder()
+        .status(200)
+        .header("Content-Type", content_type)
+        .body(Body::from(Vec::from(body_bytes)));
+    let response = match response_res {
+        Ok(r) => r,
+        Err(e) => {
+            error!("error assembling response: {}", e);
+            return return_500();
+        }
+    };
+    Ok(response)
 }
 
 

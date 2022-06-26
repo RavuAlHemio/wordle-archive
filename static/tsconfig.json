@@ -1,0 +1,15 @@
+{
+    "include": [
+        "*.ts"
+    ],
+    "compilerOptions": {
+        "alwaysStrict": true,
+        "downlevelIteration": true,
+        "lib": [
+            "dom",
+            "ES2015"
+        ],
+        "sourceMap": true,
+        "strict": true
+    }
+}

@@ -1,0 +1,57 @@
+body { font-family: sans-serif; }
+section.puzzle {
+  border: 1px solid #000;
+  padding: 0.2em;
+}
+.disabled-link {
+  filter: contrast(0.1) brightness(1.5) grayscale(100%);
+}
+.field-box, .arrow-box, .guess-box {
+  display: inline-block;
+  height: 2em;
+  line-height: 2em;
+}
+.field-box, .arrow-box {
+  width: 2em;
+  font-weight: bold;
+  font-size: 120%;
+}
+.guess-box {
+  min-width: 2em;
+}
+.field-box {
+  color: #fff;
+  text-align: center;
+  vertical-align: middle;
+  margin: 0.1em;
+}
+.solution-box { display: inline-block; }
+.field-box.guess-W { background-color: #3a3a3c; }
+.field-box.guess-M { background-color: #b59f3b; }
+.field-box.guess-C { background-color: #538d4e; }
+.field-box.guess-T { background-color: #4e738d; }
+.field-box.solution { background-color: #bf5e2d; }
+.site-nerdle .field-box.guess-W { background-color: #161803; }
+.site-nerdle .field-box.guess-M { background-color: #820458; }
+.site-nerdle .field-box.guess-C { background-color: #398874; }
+.stats table th, .stats table td { text-align: left; padding-right: 0.4em; }
+.stats td.value { min-width: 4.5em; }
+.stats td.value.numeric { text-align: right; }
+.stats td.graph div { height: 1em; display: inline-block; }
+.stats td.graph div.goodness { background-color: #538d4e; }
+.stats td.graph div.badness { background-color: #b59f3b; }
+.sub-puzzle + .sub-puzzle { margin-top: 1em; }
+.sub-puzzle.variant-wordle32 { display: flex; flex-wrap: wrap; }
+.variant-wordle32 .field { margin-right: 1em; }
+.variant-wordle32 .solution-row { font-family: monospace; font-size: 110%; }
+.variant-wordle32 .all-guess-row { margin-top: 0.1em; }
+.variant-wordle32 .all-guess-row .solution-box {
+  width: 1em;
+  height: 1em;
+  border: 1px solid #000;
+  text-align: center;
+  vertical-align: middle;
+}
+.variant-wordle32 .all-guess-row .solution-box.rating-correct { background-color: #538d4e; color: #fff; }
+.variant-wordle32 .all-guess-row .solution-box.rating-misplaced { background-color: #b59f3b; color: #fff; }
+.variant-wordle32 .all-guess-row .solution-box.rating-wrong { background-color: #3a3a3c; color: #fff; }
