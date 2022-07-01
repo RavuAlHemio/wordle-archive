@@ -59,6 +59,6 @@ section.puzzle {
 @media screen and (prefers-color-scheme: dark) {
   body { background-color: black; color: #ccc; }
   input[type=text], input[type=number], select, textarea { background-color: black; color: #ccc; }
-  a:link { color: #ff0; }
-  a:visited { color: #0ff; }
+  a:link { color: #e8c83b; }
+  a:visited { color: #4faef2; }
 }
