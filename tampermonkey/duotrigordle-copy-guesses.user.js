@@ -22,8 +22,20 @@
         copyButton.addEventListener("click", function () {
             var state = JSON.parse(window.localStorage["duotrigordle-state"]);
             var guessList = state.guesses;
-            // add hint for missed solutions in case we lost
-            guessList.push("<missed solutions here>");
+
+            var wordsDiv = document.querySelector("div.result > div.words");
+            if (wordsDiv !== null) {
+                var wordElements = wordsDiv.querySelectorAll("p");
+                for (var i = 0; i < wordElements.length; i++) {
+                    var word = wordElements.item(i).textContent;
+                    if (guessList.indexOf(word) === -1) {
+                        guessList.push(word);
+                    }
+                }
+            } else {
+                // no words to be found; add a hint for missed solutions
+                guessList.push("<missed solutions here>");
+            }
             var guesses = guessList.join("\n");
 
             navigator.clipboard.writeText(guesses).then(function () {
