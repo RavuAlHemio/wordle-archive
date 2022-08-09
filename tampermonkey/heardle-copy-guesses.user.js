@@ -1,10 +1,12 @@
 // ==UserScript==
 // @name         Wordle Copy Guesses - Heardle
 // @namespace    http://ondrahosek.com/tampermonkey/wordle-copy-guesses/heardle
-// @version      0.2
+// @version      0.2.1
 // @description  Provide a button to quickly copy Heardle guesses into the clipboard.
 // @author       Ondřej Hošek <ondra.hosek@gmail.com>
 // @match        https://www.spotify.com/heardle/*
+// @match        https://proxy-nyc.hidemyass-freeproxy.com/proxy/*/aHR0cHM6Ly93d3cuc3BvdGlmeS5jb20vaGVhcmRsZS8
+// @match        https://proxy-sea.hidemyass-freeproxy.com/proxy/*/aHR0cHM6Ly93d3cuc3BvdGlmeS5jb20vaGVhcmRsZS8
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=www.heardle.app
 // @grant        none
 // ==/UserScript==
