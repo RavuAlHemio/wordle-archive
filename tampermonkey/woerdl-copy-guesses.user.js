@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Wordle Copy Guesses - Wördl (wordle.at)
 // @namespace    http://ondrahosek.com/tampermonkey/wordle-copy-guesses/woerdl
-// @version      0.1
+// @version      0.2
 // @description  Provide a button to quickly copy Wördl guesses into the clipboard.
 // @author       Ondřej Hošek <ondra.hosek@gmail.com>
 // @match        https://wordle.at/
@@ -40,6 +40,13 @@
     var waitAndGiveStatsButton;
     var statsButtonCount = 0;
     waitAndGiveStatsButton = function () {
+        // cookie banner doesn't play nice with uBlock Origin and Privacy Badger
+        // => nuke it from orbit, it's the only way to be sure
+        var cookieWrapper = document.getElementById("ez-cookie-dialog-wrapper");
+        if (cookieWrapper !== null) {
+            cookieWrapper.parentNode.removeChild(cookieWrapper);
+        }
+
         var statsButton = document.getElementById("openStats");
         if (statsButton === null && statsButtonCount < 5) {
             statsButtonCount += 1;
