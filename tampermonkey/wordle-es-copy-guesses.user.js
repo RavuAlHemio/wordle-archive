@@ -1,10 +1,11 @@
 // ==UserScript==
 // @name         Wordle Copy Guesses - Wordle ES
 // @namespace    http://ondrahosek.com/tampermonkey/wordle-copy-guesses/es
-// @version      0.1
+// @version      0.2
 // @description  Provide a button to quickly copy Wordle ES guesses into the clipboard.
 // @author       Ondřej Hošek <ondra.hosek@gmail.com>
 // @match        https://wordle.danielfrg.com/
+// @match        https://lapalabradeldia.com/
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=wordle.danielfrg.com
 // @grant        none
 // ==/UserScript==
