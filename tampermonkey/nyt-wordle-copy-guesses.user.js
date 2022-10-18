@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Wordle Copy Guesses - NYT
 // @namespace    http://ondrahosek.com/tampermonkey/wordle-copy-guesses/nyt
-// @version      0.1
+// @version      0.2
 // @description  Provide a button to quickly copy Wordle guesses into the clipboard.
 // @author       Ondřej Hošek <ondra.hosek@gmail.com>
 // @match        https://www.nytimes.com/games/wordle/*
@@ -12,6 +12,31 @@
 (function() {
     'use strict';
 
+    function getUserID() {
+        // is the user logged in?
+        var loginCookies = document.cookie
+            .split("; ")
+            .filter(function (ck) { return ck.startsWith("nyt-jkidd="); })
+            .map(function (ck) { return ck.substring("nyt-jkidd=".length); });
+        var userID = "ANON";
+        for (var i = 0; i < loginCookies.length; i++) {
+            if (loginCookies[i].length === 0) {
+                continue;
+            }
+            var userIDValues = loginCookies[i]
+                .split("&")
+                .filter(function (v) { return v.startsWith("uid="); })
+                .map(function (v) { return v.substring("uid=".length); });
+            for (var j = 0; j < userIDValues.length; j++) {
+                if (userIDValues[j].length === 0) {
+                    continue;
+                }
+                userID = userIDValues[j];
+            }
+        }
+        return userID;
+    }
+
     function setUpButton(navBar) {
         var copyButton = document.createElement("input");
         copyButton.type = "button";
@@ -21,14 +46,14 @@
         navBar.insertBefore(copyButton, navBar.firstChild);
 
         copyButton.addEventListener("click", function () {
-            var wordleState = JSON.parse(window.localStorage["nyt-wordle-state"]);
-            var guessList = wordleState.boardState
+            var userID = getUserID();
+            var wordleState = JSON.parse(window.localStorage["nyt-wordle-moogle/" + userID]);
+            var guessList = wordleState.game.boardState
                 .filter(function (s) { return s !== ''; })
                 .map(function (s) { return s.toUpperCase(); });
-            var solution = wordleState.solution.toUpperCase();
-            if (guessList.length === 6 && guessList[guessList.length - 1] !== solution) {
-                // defeated; also append correct solution
-                guessList.push(solution);
+            if (wordleState.game.status === "FAIL") {
+                // defeated; the solution is no longer stored in localStorage...
+                guessList.push("<insert correct solution>");
             }
             var guesses = guessList.join("\n");
 
