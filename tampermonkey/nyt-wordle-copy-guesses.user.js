@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Wordle Copy Guesses - NYT
 // @namespace    http://ondrahosek.com/tampermonkey/wordle-copy-guesses/nyt
-// @version      0.2
+// @version      0.3
 // @description  Provide a button to quickly copy Wordle guesses into the clipboard.
 // @author       Ondřej Hošek <ondra.hosek@gmail.com>
 // @match        https://www.nytimes.com/games/wordle/*
@@ -29,6 +29,9 @@
                 .map(function (v) { return v.substring("uid=".length); });
             for (var j = 0; j < userIDValues.length; j++) {
                 if (userIDValues[j].length === 0) {
+                    continue;
+                }
+                if (!window.localStorage.hasOwnProperty("nyt-wordle-moogle/" + userIDValues[j])) {
                     continue;
                 }
                 userID = userIDValues[j];
