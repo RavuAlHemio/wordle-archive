@@ -82,7 +82,7 @@
       </div>
       {% endif -%}
 
-    {% else if puzzle.site.variant == "audio" -%}
+    {% else if puzzle.site.variant == "audio" || puzzle.site.variant == "globle" -%}
 
       {% for (guess, solution) in sub_puzzle.guess_lines -%}
       <div class="field-row guess-row">
