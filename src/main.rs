@@ -182,6 +182,11 @@ static AUDIO_RESULT_BLOCK_RE: Lazy<Regex> = Lazy::new(|| Regex::new(concat!(
     "(?:[\u{2B1B}\u{2B1C}\u{1F7E5}-\u{1F7EB}]\u{FE0F}?)+",
 )).unwrap());
 
+static GLOBLE_RESULT_BLOCK_RE: Lazy<Regex> = Lazy::new(|| Regex::new(concat!(
+    // squares as above, but line breaks may be in between
+    "(?:[\u{2B1B}\u{2B1C}\u{1F7E5}-\u{1F7EB}]\\s*)+",
+)).unwrap());
+
 static WORDLE32_RESULT_BLOCK_RE: Lazy<Regex> = Lazy::new(|| Regex::new(concat!(
     // on success: twice: digit (U+0030 to U+0039), emoji variant selector (U+FE0F), enclosing keycap (U+20E3)
     // on failure: two red squares (U+1F7E5)
@@ -668,6 +673,21 @@ async fn handle_populate_get<P: Into<String>>(
     render_template(&template, 200, HashMap::new())
 }
 
+fn decode_square_globle(square: char) -> Option<char> {
+    match square {
+        // black, white => wrong
+        '\u{2B1B}'|'\u{2B1C}' => Some('W'),
+        // blue, green, orange, yellow, purple, brown => wrong
+        '\u{1F7E6}'|'\u{1F7E9}'|'\u{1F7E7}'|'\u{1F7E8}'|'\u{1F7EA}'|'\u{1F7EB}' => Some('W'),
+        // red => correct
+        '\u{1F7E5}' => Some('C'),
+        c => {
+            warn!("unexpected result character {:?}; ignoring", c);
+            None
+        },
+    }
+}
+
 fn decode_square(square: char) -> Option<char> {
     match square {
         // black, white => wrong
@@ -815,6 +835,65 @@ async fn handle_populate_post<P: Into<String>>(
                 if c == '\u{FE0F}' {
                     // emoji variant selector; skip it
                 } else if let Some(sq) = decode_square(c) {
+                    result_string.push(sq);
+                    if sq == 'C' {
+                        // correct answer! stop here
+                        break;
+                    }
+                }
+            }
+
+            let victory = result_string.chars().any(|c| c == 'C');
+            let expected_line_count = if victory {
+                result_string.chars().count()
+            } else {
+                result_string.chars().count() + 1
+            };
+            if expected_line_count != solution_lines.len() {
+                return return_400(
+                    format!(
+                        "{} guesses derived from result {:?}, {} solution lines; must be the same",
+                        expected_line_count, result_string, solution_lines.len(),
+                    ),
+                    static_prefix,
+                );
+            }
+
+            // intersperse newline characters in the result string
+            let mut newline_result_string = String::with_capacity(result_string.len()*2);
+            for c in result_string.chars() {
+                if newline_result_string.len() > 0 {
+                    newline_result_string.push('\n');
+                }
+                newline_result_string.push(c);
+            }
+
+            let attempts = if victory {
+                Some(newline_result_string.bytes().filter(|b| *b == b'\n').count() + 1)
+            } else {
+                None
+            };
+
+            PuzzleData::new(
+                &result[0..m.start()],
+                m.as_str(),
+                &result[m.end()..],
+                newline_result_string,
+                raw_solution.as_str(),
+                attempts,
+                Some(expected_line_count),
+            )
+        } else {
+            return return_400("failed to decode guesses", static_prefix);
+        }
+    } else if site.variant == "globle" {
+        let solution_lines: Vec<&str> = raw_solution.split('\n').collect();
+        if let Some(m) = GLOBLE_RESULT_BLOCK_RE.find(&result) {
+            let mut result_string = String::new();
+            for c in m.as_str().chars() {
+                if c == '\n' || c == ' ' {
+                    // newline or space, skip it
+                } else if let Some(sq) = decode_square_globle(c) {
                     result_string.push(sq);
                     if sq == 'C' {
                         // correct answer! stop here
