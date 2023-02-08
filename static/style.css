@@ -31,9 +31,22 @@ section.puzzle {
 .field-box.guess-C { background-color: #538d4e; }
 .field-box.guess-T { background-color: #4e738d; }
 .field-box.solution { background-color: #bf5e2d; }
-.site-nerdle .field-box.guess-W { background-color: #161803; }
-.site-nerdle .field-box.guess-M { background-color: #820458; }
-.site-nerdle .field-box.guess-C { background-color: #398874; }
+.variant-nerdle .field-box.guess-W { background-color: #161803; }
+.variant-nerdle .field-box.guess-M { background-color: #820458; }
+.variant-nerdle .field-box.guess-C { background-color: #398874; }
+.variant-globle .field-box.guess-W { background-color: #ffffff; }
+.variant-globle .field-box.guess-1 { background-color: #e81224; }
+.variant-globle .field-box.guess-2 { background-color: #f7630c; }
+.variant-globle .field-box.guess-3 { background-color: #fff100; }
+.variant-globle .field-box.guess-C { background-color: #16c60c; }
+.variant-globlec .field-box.guess-W { background-color: #383838; }
+.variant-globlec .field-box.guess-1 { background-color: #f7630c; }
+.variant-globlec .field-box.guess-2 { background-color: #fff100; }
+.variant-globlec .field-box.guess-3 { background-color: #16c60c; }
+.variant-globlec .field-box.guess-4 { background-color: #0078d7; }
+.variant-globlec .field-box.guess-5 { background-color: #886ce4; }
+.variant-globlec .field-box.guess-C { background-color: #e81224; }
+
 .stats table th, .stats table td { text-align: left; padding-right: 0.4em; }
 .stats td.value { min-width: 4.5em; }
 .stats td.value.numeric { text-align: right; }
