@@ -443,7 +443,7 @@ fn db_puzzle_to_puzzle_part(db_puzzle: &SiteAndPuzzle) -> PuzzlePart {
             .collect();
         let solution = solution_lines.get(solution_lines.len() - sub_puzzle_patterns.len() + i)
             .unwrap().clone();
-        let victory = pattern_lines.iter().any(|ln| ln.chars().all(|c| c != 'M' && c != 'W' && c != '1' && c != '2' && c != '3' && c != '4' && c != '5'));
+        let victory = pattern_lines.iter().any(|ln| ln.chars().all(|c| [ 'M', 'W', '1', '2', '3', '4', '5' ].contains(&c)));
 
         sub_puzzles.push(SubPuzzle {
             pattern_lines,
@@ -812,13 +812,7 @@ async fn handle_populate_post<P: Into<String>>(
             let last_result_line = result_lines.last().unwrap();
             let victory =
                 last_result_line.contains('C')
-                && !last_result_line.contains('M')
-                && !last_result_line.contains('W')
-                && !last_result_line.contains('1')
-                && !last_result_line.contains('2')
-                && !last_result_line.contains('3')
-                && !last_result_line.contains('4')
-                && !last_result_line.contains('5')
+                && !last_result_line.chars().any(|c| [ 'M', 'W', '1', '2', '3', '4', '5' ].contains(&c))
             ;
             let expected_line_count = if victory {
                 result_lines.len()
