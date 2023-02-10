@@ -443,7 +443,7 @@ fn db_puzzle_to_puzzle_part(db_puzzle: &SiteAndPuzzle) -> PuzzlePart {
             .collect();
         let solution = solution_lines.get(solution_lines.len() - sub_puzzle_patterns.len() + i)
             .unwrap().clone();
-        let victory = pattern_lines.iter().any(|ln| ln.chars().all(|c| [ 'M', 'W', '1', '2', '3', '4', '5' ].contains(&c)));
+        let victory = pattern_lines.iter().any(|ln| ln.chars().all(|c| ![ 'M', 'W', '1', '2', '3', '4', '5' ].contains(&c)));
 
         sub_puzzles.push(SubPuzzle {
             pattern_lines,
