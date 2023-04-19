@@ -5,7 +5,7 @@
 // @description  Provide a button to quickly copy Nerdle guesses into the clipboard.
 // @author       Ondřej Hošek <ondra.hosek@gmail.com>
 // @match        https://nerdlegame.com/
-// @match        https://bi.nerdlegame.com/
+// @match        https://bi.nerdlegame.com/game
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=nerdlegame.com
 // @grant        none
 // ==/UserScript==
