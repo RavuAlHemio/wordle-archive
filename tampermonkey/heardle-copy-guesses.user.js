@@ -7,6 +7,8 @@
 // @match        https://www.spotify.com/heardle/*
 // @match        https://proxy-nyc.hidemyass-freeproxy.com/proxy/*/aHR0cHM6Ly93d3cuc3BvdGlmeS5jb20vaGVhcmRsZS8
 // @match        https://proxy-sea.hidemyass-freeproxy.com/proxy/*/aHR0cHM6Ly93d3cuc3BvdGlmeS5jb20vaGVhcmRsZS8
+// @match        https://*.heardledecades.com/
+// @match        https://reheardle.com/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=www.heardle.app
 // @grant        none
 // ==/UserScript==
@@ -25,7 +27,20 @@
         statsButton.parentElement.insertBefore(copyButton, statsButton);
 
         copyButton.addEventListener("click", function () {
-            var stats = JSON.parse(window.localStorage.userStats);
+            var stats;
+            if (window.location.host === "reheardle.com") {
+                var key;
+                if (window.location.pathname === "/") {
+                    key = "original";
+                }
+                else {
+                    key = window.location.pathname.replaceAll("/", "");
+                }
+                stats = JSON.parse(window.localStorage[key]);
+            }
+            else {
+                stats = JSON.parse(window.localStorage.userStats)
+            }
             var todaysStats = stats[stats.length - 1];
             var guessList = todaysStats.guessList
                 .map(function (g) { return (g.answer === undefined) ? "" : g.answer; });
@@ -69,6 +84,9 @@
     var statsButtonCount = 0;
     waitAndGiveStatsButton = function () {
         var statsButton = document.querySelector("div > div > div > div > h1 + button");
+        if (statsButton === null) {
+            statsButton = document.querySelector("div > div > div:last-child > button");
+        }
         if (statsButton === null && statsButtonCount < 5) {
             statsButtonCount += 1;
             window.setTimeout(waitAndGiveStatsButton, 200);
