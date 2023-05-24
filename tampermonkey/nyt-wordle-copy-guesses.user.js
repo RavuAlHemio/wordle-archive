@@ -72,11 +72,12 @@
     var navBarCount = 0;
     waitAndGiveNavBar = function () {
         var navBar = document.querySelector(".wordle-app-header div[class^=AppHeader-module_menuRight__]");
-        if (navBar === null && navBarCount < 5) {
-            navBarCount += 1;
-            window.setTimeout(waitAndGiveNavBar, 200);
+        if (navBar === null) {
+            window.setTimeout(waitAndGiveNavBar, 1000);
         }
-        setUpButton(navBar);
+        else {
+            setUpButton(navBar);
+        }
     };
-    window.setTimeout(waitAndGiveNavBar, 200);
+    window.setTimeout(waitAndGiveNavBar, 1000);
 })();
