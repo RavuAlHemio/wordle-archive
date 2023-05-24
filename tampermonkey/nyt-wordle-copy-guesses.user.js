@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Wordle Copy Guesses - NYT
 // @namespace    http://ondrahosek.com/tampermonkey/wordle-copy-guesses/nyt
-// @version      0.3
+// @version      0.4
 // @description  Provide a button to quickly copy Wordle guesses into the clipboard.
 // @author       Ondřej Hošek <ondra.hosek@gmail.com>
 // @match        https://www.nytimes.com/games/wordle/*
@@ -71,6 +71,13 @@
     var waitAndGiveNavBar;
     var navBarCount = 0;
     waitAndGiveNavBar = function () {
+        // "Play" or "Continue" or "See stats" button
+        var playButton = document.querySelector("button[type=button][class^=Welcome-module_button__]");
+        if (playButton !== null) {
+            // keep waiting until the user presses that button
+            window.setTimeout(waitAndGiveNavBar, 1000);
+            return;
+        }
         var navBar = document.querySelector(".wordle-app-header div[class^=AppHeader-module_menuRight__]");
         if (navBar === null && navBarCount < 5) {
             navBarCount += 1;
