@@ -1,4 +1,4 @@
-FROM archlinux:base-devel as build
+FROM archlinux:base-devel AS build
 RUN pacman -Syu --noconfirm
 RUN pacman -S --needed --noconfirm cargo git python
 
@@ -21,5 +21,5 @@ RUN ln -s /config/config.toml /opt/wordle-archive/config.toml
 HEALTHCHECK --interval=5m --timeout=10s CMD curl http://localhost:8084/ || exit 1
 
 WORKDIR /opt/wordle-archive
-CMD ./wordle-archive
+CMD [ "./wordle-archive" ]
 
