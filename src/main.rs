@@ -13,7 +13,6 @@ use std::process::ExitCode;
 use askama::Template;
 use chrono::{Duration, Local, NaiveDate};
 use clap::Parser;
-use env_logger;
 use form_urlencoded;
 use http_body_util::{BodyExt, Full};
 use hyper::{Method, Request, Response};
@@ -21,13 +20,13 @@ use hyper::body::{Bytes, Incoming};
 use hyper::service::service_fn;
 use hyper_util::rt::{TokioExecutor, TokioIo};
 use hyper_util::server::conn::auto::Builder;
-use log::{error, info, warn};
 use once_cell::sync::Lazy;
 use percent_encoding::percent_decode_str;
 use rand::{Rng, thread_rng};
 use regex::Regex;
 use tokio::net::TcpListener;
 use tokio::sync::RwLock;
+use tracing::{error, info, warn};
 
 use crate::config::{CONFIG, CONFIG_PATH, load_config};
 use crate::database::{DbConnection, OptionResult};
@@ -1104,7 +1103,11 @@ async fn run() -> ExitCode {
     let opts = Opts::parse();
 
     // set up logging
-    env_logger::init();
+    let (stdout_non_blocking, _guard) = tracing_appender::non_blocking(std::io::stdout());
+    tracing_subscriber::fmt()
+        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .with_writer(stdout_non_blocking)
+        .init();
 
     // store config file path
     CONFIG_PATH.set(opts.config_file)

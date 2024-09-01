@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use tracing::instrument;
 
 use crate::database::DbMigration;
 use crate::database::migration_utils;
@@ -12,6 +13,7 @@ impl DbMigration for MigrationR0011ToR0012 {
         migration_utils::schema_older_than(schema_version, 12)
     }
 
+    #[instrument(skip(db_client))]
     async fn migrate(&self, db_client: &tokio_postgres::Client) -> bool {
         let migration_code = include_str!("../../db/migrations/r0011_to_r0012.pgsql");
         match db_client.batch_execute(migration_code).await {

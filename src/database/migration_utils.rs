@@ -1,5 +1,5 @@
-use log::error;
 use tokio_postgres::types::ToSql;
+use tracing::error;
 
 use crate::database::DbMigration;
 

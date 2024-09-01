@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use tracing::instrument;
 
 use crate::database::DbMigration;
 use crate::database::migration_utils;
@@ -12,6 +13,7 @@ impl DbMigration for MigrationR0006ToR0007 {
         migration_utils::schema_older_than(schema_version, 7)
     }
 
+    #[instrument(skip(db_client))]
     async fn migrate(&self, db_client: &tokio_postgres::Client) -> bool {
         let migration_code = include_str!("../../db/migrations/r0006_to_r0007.pgsql");
         match db_client.batch_execute(migration_code).await {
@@ -34,6 +36,7 @@ impl DbMigration for MigrationR0007ToR0008 {
         migration_utils::schema_older_than(schema_version, 8)
     }
 
+    #[instrument(skip(db_client))]
     async fn migrate(&self, db_client: &tokio_postgres::Client) -> bool {
         let migration_code = include_str!("../../db/migrations/r0007_to_r0008.pgsql");
         match db_client.batch_execute(migration_code).await {
@@ -56,6 +59,7 @@ impl DbMigration for MigrationR0008ToR0009 {
         migration_utils::schema_older_than(schema_version, 9)
     }
 
+    #[instrument(skip(db_client))]
     async fn migrate(&self, db_client: &tokio_postgres::Client) -> bool {
         let migration_code = include_str!("../../db/migrations/r0008_to_r0009.pgsql");
         match db_client.batch_execute(migration_code).await {
@@ -78,6 +82,7 @@ impl DbMigration for MigrationR0009ToR0010 {
         migration_utils::schema_older_than(schema_version, 10)
     }
 
+    #[instrument(skip(db_client))]
     async fn migrate(&self, db_client: &tokio_postgres::Client) -> bool {
         let migration_code = include_str!("../../db/migrations/r0009_to_r0010.pgsql");
         match db_client.batch_execute(migration_code).await {
@@ -100,6 +105,7 @@ impl DbMigration for MigrationR0010ToR0011 {
         migration_utils::schema_older_than(schema_version, 11)
     }
 
+    #[instrument(skip(db_client))]
     async fn migrate(&self, db_client: &tokio_postgres::Client) -> bool {
         let migration_code = include_str!("../../db/migrations/r0010_to_r0011.pgsql");
         match db_client.batch_execute(migration_code).await {

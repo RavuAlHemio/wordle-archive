@@ -4,10 +4,10 @@ use std::io::Read;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 
-use log::error;
 use once_cell::sync::OnceCell;
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
+use tracing::error;
 
 
 pub(crate) static CONFIG_PATH: OnceCell<PathBuf> = OnceCell::new();

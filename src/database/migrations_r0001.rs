@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use log::error;
+use tracing::{error, instrument};
 
 use crate::database::DbMigration;
 use crate::database::migration_utils;
@@ -17,6 +17,7 @@ impl DbMigration for MigrationR0001ToR0002 {
         Ok(!version_table_already_exists)
     }
 
+    #[instrument(skip(db_client))]
     async fn migrate(&self, db_client: &tokio_postgres::Client) -> bool {
         let migration_code = include_str!("../../db/migrations/r0001_to_r0002.pgsql");
 
@@ -41,6 +42,7 @@ impl DbMigration for MigrationR0002ToR0003 {
         migration_utils::schema_older_than(schema_version, 3)
     }
 
+    #[instrument(skip(db_client))]
     async fn migrate(&self, db_client: &tokio_postgres::Client) -> bool {
         // check if column victory exists in wordle_archive.puzzles
         let table_has_victory_column = {
@@ -180,6 +182,7 @@ impl DbMigration for MigrationR0003ToR0004 {
         migration_utils::schema_older_than(schema_version, 4)
     }
 
+    #[instrument(skip(db_client))]
     async fn migrate(&self, db_client: &tokio_postgres::Client) -> bool {
         // check if column victory exists in wordle_archive.sites_and_puzzles
         let view_has_victory_column = {
@@ -375,6 +378,7 @@ impl DbMigration for MigrationR0004ToR0005 {
         migration_utils::schema_older_than(schema_version, 5)
     }
 
+    #[instrument(skip(db_client))]
     async fn migrate(&self, db_client: &tokio_postgres::Client) -> bool {
         let migration_code = include_str!("../../db/migrations/r0004_to_r0005.pgsql");
 
@@ -399,6 +403,7 @@ impl DbMigration for MigrationR0005ToR0006 {
         migration_utils::schema_older_than(schema_version, 6)
     }
 
+    #[instrument(skip(db_client))]
     async fn migrate(&self, db_client: &tokio_postgres::Client) -> bool {
         let migration_code = include_str!("../../db/migrations/r0005_to_r0006.pgsql");
 

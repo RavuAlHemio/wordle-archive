@@ -9,8 +9,8 @@ use std::fmt::Debug;
 
 use async_trait::async_trait;
 use chrono::NaiveDate;
-use log::error;
 use tokio_postgres::{self, NoTls};
+use tracing::error;
 
 use crate::config::CONFIG;
 use crate::model::{Puzzle, PuzzleSite, SiteAndPuzzle, Stats, StatsSubject};
