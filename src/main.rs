@@ -8,19 +8,25 @@ use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 use std::convert::Infallible;
 use std::path::PathBuf;
+use std::process::ExitCode;
 
 use askama::Template;
 use chrono::{Duration, Local, NaiveDate};
 use clap::Parser;
 use env_logger;
 use form_urlencoded;
-use hyper::{Body, Method, Request, Response};
-use hyper::service::{make_service_fn, service_fn};
+use http_body_util::{BodyExt, Full};
+use hyper::{Method, Request, Response};
+use hyper::body::{Bytes, Incoming};
+use hyper::service::service_fn;
+use hyper_util::rt::{TokioExecutor, TokioIo};
+use hyper_util::server::conn::auto::Builder;
 use log::{error, info, warn};
 use once_cell::sync::Lazy;
 use percent_encoding::percent_decode_str;
 use rand::{Rng, thread_rng};
 use regex::Regex;
+use tokio::net::TcpListener;
 use tokio::sync::RwLock;
 
 use crate::config::{CONFIG, CONFIG_PATH, load_config};
@@ -208,8 +214,8 @@ static WORDLE32_RESULT_BLOCK_RE: Lazy<Regex> = Lazy::new(|| Regex::new(concat!(
 )).unwrap());
 
 
-fn return_500() -> Result<Response<Body>, Infallible> {
-    let body = Body::from("500 Internal Server Error");
+fn return_500() -> Result<Response<Full<Bytes>>, Infallible> {
+    let body = Full::new(Bytes::from("500 Internal Server Error"));
     let resp = Response::builder()
         .status(500)
         .header("Content-Type", "text/plain; charset=utf-8")
@@ -218,7 +224,7 @@ fn return_500() -> Result<Response<Body>, Infallible> {
     Ok(resp)
 }
 
-fn return_400<S: Into<String>, P: Into<String>>(reason: S, static_prefix: P) -> Result<Response<Body>, Infallible> {
+fn return_400<S: Into<String>, P: Into<String>>(reason: S, static_prefix: P) -> Result<Response<Full<Bytes>>, Infallible> {
     let template = Error400Template {
         reason: reason.into(),
         static_prefix: static_prefix.into(),
@@ -226,14 +232,14 @@ fn return_400<S: Into<String>, P: Into<String>>(reason: S, static_prefix: P) -> 
     render_template(&template, 400, HashMap::new())
 }
 
-fn return_403<P: Into<String>>(static_prefix: P) -> Result<Response<Body>, Infallible> {
+fn return_403<P: Into<String>>(static_prefix: P) -> Result<Response<Full<Bytes>>, Infallible> {
     let template = Error403Template {
         static_prefix: static_prefix.into(),
     };
     render_template(&template, 403, HashMap::new())
 }
 
-fn return_404<P: Into<String>>(static_prefix: P) -> Result<Response<Body>, Infallible> {
+fn return_404<P: Into<String>>(static_prefix: P) -> Result<Response<Full<Bytes>>, Infallible> {
     let template = Error404Template {
         static_prefix: static_prefix.into(),
     };
@@ -299,7 +305,7 @@ fn render_template<T: Template>(
     template: &T,
     status: u16,
     headers: HashMap<Cow<str>, Cow<str>>,
-) -> Result<Response<Body>, Infallible> {
+) -> Result<Response<Full<Bytes>>, Infallible> {
     let rendered = match template.render() {
         Ok(r) => r,
         Err(e) => {
@@ -307,7 +313,7 @@ fn render_template<T: Template>(
             return return_500();
         },
     };
-    let body = Body::from(rendered);
+    let body = Full::new(Bytes::from(rendered));
 
     let mut builder = Response::builder()
         .status(status)
@@ -325,7 +331,7 @@ fn render_template<T: Template>(
     Ok(response)
 }
 
-fn return_internal_redirect(base_path_segs: &[Cow<str>], path: &str, code: u16) -> Result<Response<Body>, Infallible> {
+fn return_internal_redirect(base_path_segs: &[Cow<str>], path: &str, code: u16) -> Result<Response<Full<Bytes>>, Infallible> {
     let mut local_url = String::new();
     for bps in base_path_segs {
         local_url.push('/');
@@ -337,7 +343,7 @@ fn return_internal_redirect(base_path_segs: &[Cow<str>], path: &str, code: u16) 
         .status(code)
         .header("Location", &local_url)
         .header("Content-Type", "text/plain; charset=utf-8")
-        .body(Body::from(format!("Redirecting to {}", local_url)));
+        .body(Full::new(Bytes::from(format!("Redirecting to {}", local_url))));
     match response_res {
         Ok(r) => Ok(r),
         Err(e) => {
@@ -347,15 +353,15 @@ fn return_internal_redirect(base_path_segs: &[Cow<str>], path: &str, code: u16) 
     }
 }
 
-fn return_redirect_todays_wordle(base_path_segs: &[Cow<str>]) -> Result<Response<Body>, Infallible> {
-    let today = Local::now().date().naive_local().format("%Y-%m-%d").to_string();
+fn return_redirect_todays_wordle(base_path_segs: &[Cow<str>]) -> Result<Response<Full<Bytes>>, Infallible> {
+    let today = Local::now().naive_local().date().format("%Y-%m-%d").to_string();
     let mut today_path = String::new();
     today_path.push_str("/wordle/");
     today_path.push_str(&today);
     return_internal_redirect(&base_path_segs, &today_path, 303)
 }
 
-async fn handle_request(req: Request<Body>) -> Result<Response<Body>, Infallible> {
+async fn handle_request(req: Request<Incoming>) -> Result<Response<Full<Bytes>>, Infallible> {
     let path_segs_opt = to_path_segments(req.uri().path(), false);
     let mut path_segs: Vec<String> = match path_segs_opt {
         Some(p) => p.iter().map(|s| s.clone().into_owned()).collect(),
@@ -477,16 +483,16 @@ async fn check_allow_spoiling(puzzle_date: &NaiveDate) -> bool {
         // no spoilers, ever
         false
     } else {
-        let most_recent_unprotected_day = Local::today().naive_local() - Duration::days(spoiler_protection_days);
+        let most_recent_unprotected_day = Local::now().naive_local().date() - Duration::days(spoiler_protection_days);
         puzzle_date <= &most_recent_unprotected_day
     }
 }
 
 async fn handle_wordle<S: AsRef<str>, P: Into<String>>(
-    req: Request<Body>,
+    req: Request<Incoming>,
     static_prefix: P,
     date_string_opt: Option<S>,
-) -> Result<Response<Body>, Infallible> {
+) -> Result<Response<Full<Bytes>>, Infallible> {
     let date_opt = match date_string_opt {
         Some(ds) => {
             match NaiveDate::parse_from_str(ds.as_ref(), "%Y-%m-%d") {
@@ -562,10 +568,10 @@ async fn handle_wordle<S: AsRef<str>, P: Into<String>>(
 }
 
 async fn handle_puzzle<S: AsRef<str>, P: Into<String>>(
-    req: Request<Body>,
+    req: Request<Incoming>,
     static_prefix: P,
     id_string: S,
-) -> Result<Response<Body>, Infallible> {
+) -> Result<Response<Full<Bytes>>, Infallible> {
     let id: i64 = match id_string.as_ref().parse() {
         Ok(i) => i,
         Err(_) => return return_404(static_prefix),
@@ -613,7 +619,7 @@ async fn handle_puzzle<S: AsRef<str>, P: Into<String>>(
     render_template(&template, 200, HashMap::new())
 }
 
-async fn handle_populate<P: Into<String>>(req: Request<Body>, static_prefix: P) -> Result<Response<Body>, Infallible> {
+async fn handle_populate<P: Into<String>>(req: Request<Incoming>, static_prefix: P) -> Result<Response<Full<Bytes>>, Infallible> {
     // check for token
     let query_pairs = get_query_pairs(req.uri());
     if !has_valid_token(&query_pairs, true).await {
@@ -625,7 +631,7 @@ async fn handle_populate<P: Into<String>>(req: Request<Body>, static_prefix: P) 
     } else if req.method() == Method::GET {
         handle_populate_get(&req, static_prefix, &query_pairs).await
     } else {
-        let body = Body::from("invalid method; requires GET or POST");
+        let body = Full::new(Bytes::from("invalid method; requires GET or POST"));
         let response_res = Response::builder()
             .status(405)
             .header("Content-Type", "text/plain; charset=utf-8")
@@ -642,10 +648,10 @@ async fn handle_populate<P: Into<String>>(req: Request<Body>, static_prefix: P) 
 }
 
 async fn handle_populate_get<P: Into<String>>(
-    _req: &Request<Body>,
+    _req: &Request<Incoming>,
     static_prefix: P,
     query_pairs: &HashMap<Cow<'_, str>, Cow<'_, str>>,
-) -> Result<Response<Body>, Infallible> {
+) -> Result<Response<Full<Bytes>>, Infallible> {
     let db_conn = match DbConnection::new().await {
         Some(c) => c,
         None => return return_500(), // error already logged
@@ -655,7 +661,7 @@ async fn handle_populate_get<P: Into<String>>(
         Some(ps) => ps,
         None => return return_500(), // error already logged
     };
-    let today = Local::today().naive_local();
+    let today = Local::now().naive_local().date();
     let solved_sites = match db_conn.get_solved_sites_for_date(today).await {
         Some(ss) => ss,
         None => return return_500(),
@@ -730,17 +736,17 @@ fn decode_square(square: char, variant: &String) -> Option<char> {
 }
 
 async fn handle_populate_post<P: Into<String>>(
-    req: Request<Body>,
+    req: Request<Incoming>,
     static_prefix: P,
-) -> Result<Response<Body>, Infallible> {
+) -> Result<Response<Full<Bytes>>, Infallible> {
     let db_conn = match DbConnection::new().await {
         Some(c) => c,
         None => return return_500(), // error already logged
     };
 
     let (_head, body) = req.into_parts();
-    let body_bytes = match hyper::body::to_bytes(body).await {
-        Ok(bs) => bs.to_vec(),
+    let body_bytes = match body.collect().await {
+        Ok(bs) => bs.to_bytes().to_vec(),
         Err(e) => {
             error!("failed to assemble body bytes: {}", e);
             return return_500();
@@ -1074,7 +1080,7 @@ async fn handle_populate_post<P: Into<String>>(
     let puzzle = Puzzle {
         id: -1,
         site_id,
-        date: Local::now().date().naive_local(),
+        date: Local::now().naive_local().date(),
         day_ordinal,
         head: puzzle_data.head.into_owned(),
         tail: puzzle_data.tail.into_owned(),
@@ -1093,7 +1099,7 @@ async fn handle_populate_post<P: Into<String>>(
     }
 }
 
-async fn run() -> i32 {
+async fn run() -> ExitCode {
     // parse command line
     let opts = Opts::parse();
 
@@ -1107,7 +1113,7 @@ async fn run() -> i32 {
     // load initial config (logs any errors using log::error!)
     let config = match load_config() {
         Some(c) => c,
-        None => return 1,
+        None => return ExitCode::FAILURE,
     };
 
     // remember listen address
@@ -1121,28 +1127,32 @@ async fn run() -> i32 {
     {
         if DbConnection::new().await.is_none() {
             // error already output
-            return 1;
+            return ExitCode::FAILURE;
         }
     }
     info!("database schema is up to date");
 
     // hey, listen!
-    let make_service = make_service_fn(|_conn| async {
-        Ok::<_, Infallible>(service_fn(handle_request))
-    });
-    let server = hyper::Server::bind(&listen_addr)
-        .serve(make_service);
+    let listener = TcpListener::bind(listen_addr).await
+        .expect("failed to create listening socket");
 
-    // keep going
-    if let Err(e) = server.await {
-        error!("server error: {}", e);
-        1
-    } else {
-        0
+    loop {
+        let (stream, remote_addr) = listener.accept().await
+            .expect("failed to accept incoming connection");
+        tokio::task::spawn(async move {
+            let result = Builder::new(TokioExecutor::new())
+                .http1()
+                .http2()
+                .serve_connection(TokioIo::new(stream), service_fn(handle_request))
+                .await;
+            if let Err(e) = result {
+                error!("error serving connection from {}: {}", remote_addr, e);
+            }
+        });
     }
 }
 
-async fn handle_stats<P: Into<String>>(_req: Request<Body>, static_prefix: P) -> Result<Response<Body>, Infallible> {
+async fn handle_stats<P: Into<String>>(_req: Request<Incoming>, static_prefix: P) -> Result<Response<Full<Bytes>>, Infallible> {
     let db_conn = match DbConnection::new().await {
         Some(c) => c,
         None => return return_500(), // error already logged
@@ -1160,7 +1170,7 @@ async fn handle_stats<P: Into<String>>(_req: Request<Body>, static_prefix: P) ->
     render_template(&template, 200, HashMap::new())
 }
 
-async fn handle_static<P: Into<String>>(_req: Request<Body>, static_prefix: P, static_path: &str) -> Result<Response<Body>, Infallible> {
+async fn handle_static<P: Into<String>>(_req: Request<Incoming>, static_prefix: P, static_path: &str) -> Result<Response<Full<Bytes>>, Infallible> {
     macro_rules! typescript {
         ($basename:expr) => {
             if static_path == concat!($basename, ".js") {
@@ -1186,11 +1196,11 @@ async fn handle_static<P: Into<String>>(_req: Request<Body>, static_prefix: P, s
     }
 }
 
-fn return_static(body_bytes: &[u8], content_type: &str) -> Result<Response<Body>, Infallible> {
+fn return_static(body_bytes: &[u8], content_type: &str) -> Result<Response<Full<Bytes>>, Infallible> {
     let response_res = Response::builder()
         .status(200)
         .header("Content-Type", content_type)
-        .body(Body::from(Vec::from(body_bytes)));
+        .body(Full::new(Bytes::from(body_bytes.to_vec())));
     let response = match response_res {
         Ok(r) => r,
         Err(e) => {
@@ -1203,6 +1213,6 @@ fn return_static(body_bytes: &[u8], content_type: &str) -> Result<Response<Body>
 
 
 #[tokio::main]
-async fn main() {
-    std::process::exit(run().await)
+async fn main() -> ExitCode {
+    run().await
 }

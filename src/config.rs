@@ -40,13 +40,13 @@ pub(crate) fn load_config() -> Option<Config> {
         },
     };
 
-    let mut buf = Vec::new();
-    if let Err(e) = config_file.read_to_end(&mut buf) {
+    let mut buf = String::new();
+    if let Err(e) = config_file.read_to_string(&mut buf) {
         error!("cannot load config: failed to read config file {}: {}", config_path.display(), e);
         return None;
     }
 
-    let config = match toml::from_slice(&buf) {
+    let config = match toml::from_str(&buf) {
         Ok(c) => c,
         Err(e) => {
             error!("cannot load config: failed to parse config file {}: {}", config_path.display(), e);
