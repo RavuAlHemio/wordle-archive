@@ -9,10 +9,8 @@ jobs:
         run: pacman -Syu --noconfirm
       - name: install packages
         run: pacman -S --needed --noconfirm cargo git python
-      - name: trust repo directory
-        run: git config --global --add safe.directory /__w/wordle-archive/wordle-archive
       - name: check out repository code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: add version stamp
         run: python3 cicd/version_stamp.py
       - name: run debug build
@@ -20,7 +18,7 @@ jobs:
       - name: run debug tests
         run: cargo test
       - name: upload debug binary
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: wordle-archive-debug
           path: |
